@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'sign_up.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -35,16 +35,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_slide < _slides.length - 1) {
       setState(() => _slide++);
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const SignUpScreen()),
-      );
+      context.go('/sign-up');
     }
   }
 
   void _skip() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const SignUpScreen()),
-    );
+    context.go('/sign-up');
   }
 
   @override

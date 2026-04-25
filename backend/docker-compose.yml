@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nutrivita-postgres
+    environment:
+      POSTGRES_DB: nutrivita
+      POSTGRES_USER: nutrivita
+      POSTGRES_PASSWORD: nutrivita
+    ports:
+      - "5432:5432"
+    volumes:
+      - nutrivita-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nutrivita -d nutrivita"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    profiles: ["api"]
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://nutrivita:nutrivita@postgres:5432/nutrivita?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/app/migrate", "up"]
+
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      HTTP_ADDR: :8080
+      DATABASE_URL: postgres://nutrivita:nutrivita@postgres:5432/nutrivita?sslmode=disable
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  nutrivita-postgres-data:

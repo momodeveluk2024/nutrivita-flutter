@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../screens/app_shell.dart';
+import '../screens/food_detail.dart';
+import '../screens/onboarding.dart';
+import '../screens/password_reset.dart';
+import '../screens/search.dart';
+import '../screens/sign_in.dart';
+import '../screens/sign_up.dart';
+import '../screens/splash.dart';
+import '../screens/verify_email.dart';
+import '../screens/vitamin_detail.dart';
+import 'providers/auth_provider.dart';
+
+GoRouter buildRouter(AuthProvider auth) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: auth,
+    redirect: (context, state) {
+      final path = state.uri.path;
+      final authPages = {
+        '/',
+        '/onboarding',
+        '/sign-up',
+        '/sign-in',
+        '/forgot-password',
+        '/reset-password',
+      };
+      if (!auth.initialized) {
+        return path == '/' ? null : '/';
+      }
+      if (!auth.isAuthenticated && path.startsWith('/app')) {
+        return '/sign-in';
+      }
+      if (auth.isAuthenticated && authPages.contains(path)) {
+        return '/app';
+      }
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => ResetPasswordScreen(
+          initialToken: state.uri.queryParameters['token'],
+        ),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) =>
+            VerifyEmailScreen(initialToken: state.uri.queryParameters['token']),
+      ),
+      GoRoute(path: '/app', builder: (context, state) => const AppShell()),
+      GoRoute(
+        path: '/app/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/app/food/:id',
+        builder: (context, state) =>
+            FoodDetailScreen(foodId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/app/vitamin/:code',
+        builder: (context, state) =>
+            VitaminDetailScreen(code: state.pathParameters['code'] ?? 'D'),
+      ),
+    ],
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(child: Text(state.error?.message ?? 'Route not found')),
+    ),
+  );
+}

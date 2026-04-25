@@ -1,10 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:myapplication/core/api/api_client.dart';
+import 'package:myapplication/core/providers/auth_provider.dart';
+import 'package:myapplication/core/providers/food_provider.dart';
+import 'package:myapplication/core/providers/nutrition_provider.dart';
+import 'package:myapplication/core/storage/secure_storage.dart';
 import 'package:myapplication/main.dart';
 
 void main() {
   testWidgets('NutriVita boots to splash', (WidgetTester tester) async {
-    await tester.pumpWidget(const NutriVitaApp());
+    const storage = SecureTokenStorage();
+    final api = ApiClient(tokenStorage: storage);
+    await tester.pumpWidget(
+      NutriVitaApp(
+        authProvider: AuthProvider(api: api, storage: storage),
+        foodProvider: FoodProvider(api: api),
+        nutritionProvider: NutritionProvider(api: api),
+      ),
+    );
     expect(find.text('NutriVita'), findsOneWidget);
     expect(find.text('Get started'), findsOneWidget);
   });

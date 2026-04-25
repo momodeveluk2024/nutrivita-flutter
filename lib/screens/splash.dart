@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'onboarding.dart';
-import 'sign_in.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -63,18 +62,14 @@ class SplashScreen extends StatelessWidget {
               NVPrimaryButton(
                 label: 'Get started',
                 radius: 32,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                ),
+                onPressed: () => context.go('/onboarding'),
               ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 54,
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SignInScreen()),
-                  ),
+                  onPressed: () => context.go('/sign-in'),
                   style: TextButton.styleFrom(
                     foregroundColor: c.text,
                     textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),

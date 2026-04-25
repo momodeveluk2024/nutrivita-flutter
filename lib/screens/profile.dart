@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../core/providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'splash.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -11,6 +13,12 @@ class ProfileScreen extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     final vitA = vitaminColors['A']!;
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+    final displayName = user?.displayName ?? 'NutriVita user';
+    final email = user?.email ?? '';
+    final initials = user?.initials ?? '?';
+    final isVerified = user?.isEmailVerified ?? false;
 
     return SafeArea(
       child: Column(
@@ -18,12 +26,15 @@ class ProfileScreen extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-            child: Text('You',
-                style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.8,
-                    color: c.text)),
+            child: Text(
+              'You',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+                color: c.text,
+              ),
+            ),
           ),
           Expanded(
             child: ListView(
@@ -41,43 +52,114 @@ class ProfileScreen extends StatelessWidget {
                           color: NV.accent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Text('AM',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700)),
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Amelia Chen',
-                                style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                    color: c.text)),
+                            Text(
+                              displayName,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
+                                color: c.text,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text('amelia@example.com',
-                                style: TextStyle(fontSize: 12, color: c.textMuted)),
+                            Text(
+                              email,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: c.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                            color: NV.accentSoft,
-                            borderRadius: BorderRadius.circular(100)),
-                        child: const Text('Pro',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: NV.accent)),
+                          color: NV.accentSoft,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          isVerified ? 'Verified' : 'Unverified',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: NV.accent,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
+                if (!isVerified) ...[
+                  const SizedBox(height: 14),
+                  NVCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: NV.accentSoft,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.mark_email_unread_outlined,
+                            size: 22,
+                            color: NV.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Verify your email',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.text,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Use the local verification token from the API console.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: c.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Verify email',
+                          onPressed: () => context.go('/verify-email'),
+                          icon: const Icon(Icons.chevron_right, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 NVCard(
                   padding: const EdgeInsets.all(16),
@@ -91,23 +173,33 @@ class ProfileScreen extends StatelessWidget {
                           color: vitA.bg,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.local_fire_department,
-                            size: 22, color: vitA.fill),
+                        child: Icon(
+                          Icons.local_fire_department,
+                          size: 22,
+                          color: vitA.fill,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('12-day streak',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: c.text)),
+                            Text(
+                              '12-day streak',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: c.text,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text('Keep logging to extend it',
-                                style:
-                                    TextStyle(fontSize: 12, color: c.textMuted)),
+                            Text(
+                              'Keep logging to extend it',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: c.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -124,13 +216,29 @@ class ProfileScreen extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      _Row(icon: Icons.gps_fixed, title: 'Goals', detail: 'Immunity · Energy'),
+                      _Row(
+                        icon: Icons.gps_fixed,
+                        title: 'Goals',
+                        detail: 'Immunity · Energy',
+                      ),
                       _div(c),
-                      _Row(icon: Icons.person_outline, title: 'Body details', detail: 'F, 28, 165 cm'),
+                      _Row(
+                        icon: Icons.person_outline,
+                        title: 'Body details',
+                        detail: 'F, 28, 165 cm',
+                      ),
                       _div(c),
-                      _Row(icon: Icons.eco_outlined, title: 'Dietary preferences', detail: 'Pescatarian'),
+                      _Row(
+                        icon: Icons.eco_outlined,
+                        title: 'Dietary preferences',
+                        detail: 'Pescatarian',
+                      ),
                       _div(c),
-                      _Row(icon: Icons.notifications_outlined, title: 'Reminders', detail: 'On'),
+                      _Row(
+                        icon: Icons.notifications_outlined,
+                        title: 'Reminders',
+                        detail: 'On',
+                      ),
                     ],
                   ),
                 ),
@@ -143,7 +251,11 @@ class ProfileScreen extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      _Row(icon: Icons.settings_outlined, title: 'Units', detail: 'Metric'),
+                      _Row(
+                        icon: Icons.settings_outlined,
+                        title: 'Units',
+                        detail: 'Metric',
+                      ),
                       _div(c),
                       _Row(
                         icon: Icons.auto_awesome_outlined,
@@ -151,7 +263,11 @@ class ProfileScreen extends StatelessWidget {
                         detail: dark ? 'Dark' : 'Light',
                       ),
                       _div(c),
-                      _Row(icon: Icons.info_outline, title: 'About NutriVita', detail: ''),
+                      _Row(
+                        icon: Icons.info_outline,
+                        title: 'About NutriVita',
+                        detail: '',
+                      ),
                     ],
                   ),
                 ),
@@ -159,23 +275,27 @@ class ProfileScreen extends StatelessWidget {
                 SizedBox(
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const SplashScreen()),
-                      (_) => false,
-                    ),
+                    onPressed: () async {
+                      await context.read<AuthProvider>().logout();
+                      if (context.mounted) context.go('/');
+                    },
                     icon: const Icon(Icons.logout, size: 16),
                     label: const Text('Sign out'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: c.text,
                       side: BorderSide(color: c.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Center(
-                  child: Text('Version 1.0.0 · Made with care',
-                      style: TextStyle(fontSize: 12, color: c.textMuted)),
+                  child: Text(
+                    'Version 1.0.0 · Made with care',
+                    style: TextStyle(fontSize: 12, color: c.textMuted),
+                  ),
                 ),
               ],
             ),
@@ -214,9 +334,14 @@ class _Row extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(title,
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w500, color: c.text)),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: c.text,
+              ),
+            ),
           ),
           if (detail.isNotEmpty)
             Text(detail, style: TextStyle(fontSize: 13, color: c.textMuted)),

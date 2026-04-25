@@ -1,0 +1,146 @@
+import 'package:flutter/foundation.dart';
+
+import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
+import '../models/auth.dart';
+import '../models/user.dart';
+import '../storage/secure_storage.dart';
+
+class AuthProvider extends ChangeNotifier {
+  AuthProvider({required ApiClient api, required SecureTokenStorage storage})
+    : _api = api,
+      _storage = storage;
+
+  final ApiClient _api;
+  final SecureTokenStorage _storage;
+
+  AppUser? _user;
+  bool _isLoading = false;
+  String? _error;
+  bool _initialized = false;
+
+  AppUser? get user => _user;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get initialized => _initialized;
+  bool get isAuthenticated => _user != null;
+
+  Future<void> initialize() async {
+    final token = await _storage.getAccessToken();
+    if (token == null || token.isEmpty) {
+      _initialized = true;
+      notifyListeners();
+      return;
+    }
+    try {
+      await loadMe();
+    } catch (_) {
+      await _storage.clear();
+    } finally {
+      _initialized = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signup({
+    required String displayName,
+    required String email,
+    required String password,
+  }) async {
+    await _authenticate(ApiEndpoints.signup, {
+      'display_name': displayName,
+      'email': email,
+      'password': password,
+    });
+  }
+
+  Future<void> login({required String email, required String password}) async {
+    await _authenticate(ApiEndpoints.login, {
+      'email': email,
+      'password': password,
+    });
+  }
+
+  Future<void> logout() async {
+    _setLoading(true);
+    try {
+      await _api.post(ApiEndpoints.logout);
+    } catch (_) {
+      // The local logout should still complete even if the token is stale.
+    }
+    await _storage.clear();
+    _user = null;
+    _setLoading(false);
+  }
+
+  Future<void> forgotPassword(String email) async {
+    await _runAuthAction(() async {
+      await _api.post(ApiEndpoints.forgotPassword, data: {'email': email});
+    });
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    await _runAuthAction(() async {
+      await _api.post(
+        ApiEndpoints.resetPassword,
+        data: {'token': token, 'new_password': newPassword},
+      );
+    });
+  }
+
+  Future<void> verifyEmail(String token) async {
+    await _runAuthAction(() async {
+      await _api.post(ApiEndpoints.verifyEmail, data: {'token': token});
+      final accessToken = await _storage.getAccessToken();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        await loadMe();
+      }
+    });
+  }
+
+  Future<void> loadMe() async {
+    final response = await _api.get(ApiEndpoints.me);
+    _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<void> _authenticate(String path, Map<String, dynamic> body) async {
+    _setLoading(true);
+    try {
+      final response = await _api.post(path, data: body);
+      final auth = AuthResponse.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+      await _storage.saveTokens(access: auth.access, refresh: auth.refresh);
+      _user = auth.user;
+      _error = null;
+    } catch (error) {
+      _error = error.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> _runAuthAction(Future<void> Function() action) async {
+    _setLoading(true);
+    try {
+      await action();
+      _error = null;
+    } catch (error) {
+      _error = error.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+}

@@ -1,16 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../core/models/food.dart';
+import '../core/models/nutrient_reference.dart';
+import '../core/providers/food_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
-class VitaminDetailScreen extends StatelessWidget {
+class VitaminDetailScreen extends StatefulWidget {
   const VitaminDetailScreen({super.key, this.code = 'D'});
   final String code;
+
+  @override
+  State<VitaminDetailScreen> createState() => _VitaminDetailScreenState();
+}
+
+class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
+  late final NutrientReference _nutrient;
+  late Future<List<FoodSummary>> _sourcesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _nutrient =
+        nutrientReferencesByCode[widget.code] ?? nutrientReferencesByCode['D']!;
+    final provider = context.read<FoodProvider>();
+    _sourcesFuture = provider.searchFoods(nutrient: _nutrient.code, limit: 8);
+  }
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final hue = vitaminColors[code] ?? vitaminColors['D']!;
+    final hue = vitaminColors[_nutrient.code] ?? vitaminColors['D']!;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -32,23 +55,33 @@ class VitaminDetailScreen extends StatelessWidget {
                         onTap: () => Navigator.of(context).maybePop(),
                       ),
                       NVCircleIconButton(
-                        icon: Icons.bookmark_border,
+                        icon: Icons.search,
                         background: c.surface,
+                        onTap: () => context.push('/app/search'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  VitaminChip(code: code, size: 64),
+                  VitaminChip(code: _nutrient.code, size: 64),
                   const SizedBox(height: 12),
-                  Text('Vitamin $code',
-                      style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.6,
-                          color: c.text)),
+                  Text(
+                    _nutrient.name,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      color: c.text,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('The sunshine vitamin · Fat-soluble',
-                      style: TextStyle(fontSize: 14, color: c.textMuted)),
+                  Text(
+                    '${_nutrient.group} - ${_nutrient.summary}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: c.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -56,13 +89,17 @@ class VitaminDetailScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  _DailyTargetCard(hue: hue),
+                  _DailyTargetCard(nutrient: _nutrient, hue: hue),
                   const SizedBox(height: 14),
-                  _BenefitsCard(hue: hue),
+                  _BenefitsCard(nutrient: _nutrient, hue: hue),
                   const SizedBox(height: 14),
-                  _TopSources(hue: hue),
+                  _TopSources(
+                    nutrient: _nutrient,
+                    hue: hue,
+                    sourcesFuture: _sourcesFuture,
+                  ),
                   const SizedBox(height: 14),
-                  _DeficiencyCard(),
+                  _LowIntakeCard(nutrient: _nutrient),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -75,18 +112,27 @@ class VitaminDetailScreen extends StatelessWidget {
 }
 
 class _DailyTargetCard extends StatelessWidget {
+  const _DailyTargetCard({required this.nutrient, required this.hue});
+
+  final NutrientReference nutrient;
   final VitaminHue hue;
-  const _DailyTargetCard({required this.hue});
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
+    final hasDailyTarget = nutrient.dailyTarget > 0;
     return NVCard(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          RingProgress(pct: 0.35, size: 72, color: hue.fill, label: '35%', sub: 'today'),
+          RingProgress(
+            pct: hasDailyTarget ? 0.35 : 0,
+            size: 72,
+            color: hue.fill,
+            label: hasDailyTarget ? 'DV' : '-',
+            sub: 'adult',
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -94,26 +140,20 @@ class _DailyTargetCard extends StatelessWidget {
               children: [
                 const SectionLabel('Daily target'),
                 const SizedBox(height: 2),
-                RichText(
-                  text: TextSpan(
-                    text: '15 ',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      color: c.text,
-                    ),
-                    children: [
-                      TextSpan(
-                          text: 'µg',
-                          style: TextStyle(
-                              fontSize: 13, color: c.textMuted, fontWeight: FontWeight.w500)),
-                    ],
+                Text(
+                  hasDailyTarget ? nutrient.targetLabel : 'No established DV',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: c.text,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Personalized for you · Age 28',
-                    style: TextStyle(fontSize: 12, color: c.textMuted)),
+                Text(
+                  'Adult Daily Value reference used for source ranking',
+                  style: TextStyle(fontSize: 12, color: c.textMuted),
+                ),
               ],
             ),
           ),
@@ -124,55 +164,51 @@ class _DailyTargetCard extends StatelessWidget {
 }
 
 class _BenefitsCard extends StatelessWidget {
+  const _BenefitsCard({required this.nutrient, required this.hue});
+
+  final NutrientReference nutrient;
   final VitaminHue hue;
-  const _BenefitsCard({required this.hue});
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final items = [
-      ['Bone health', 'Absorbs calcium, strengthens bones'],
-      ['Immune support', 'Regulates immune response'],
-      ['Mood', 'Linked to serotonin regulation'],
-    ];
-
     return NVCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionLabel('Benefits'),
+          const SectionLabel('Why it matters'),
           const SizedBox(height: 10),
-          ...items.map((b) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                          color: hue.bg, borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.check, size: 14, color: hue.fill),
+          ...nutrient.benefits.map(
+            (benefit) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: hue.bg,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(b[0],
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
-                          const SizedBox(height: 1),
-                          Text(b[1],
-                              style: TextStyle(fontSize: 12, color: c.textMuted)),
-                        ],
+                    child: Icon(Icons.check, size: 14, color: hue.fill),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      benefit,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: c.text,
                       ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -180,92 +216,158 @@ class _BenefitsCard extends StatelessWidget {
 }
 
 class _TopSources extends StatelessWidget {
+  const _TopSources({
+    required this.nutrient,
+    required this.hue,
+    required this.sourcesFuture,
+  });
+
+  final NutrientReference nutrient;
   final VitaminHue hue;
-  const _TopSources({required this.hue});
+  final Future<List<FoodSummary>> sourcesFuture;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final foods = [
-      ['Salmon, Atlantic', 1.40, '21 µg / 3 oz'],
-      ['Rainbow trout', 1.20, '18 µg / 3 oz'],
-      ['Fortified milk', 0.20, '3 µg / 1 cup'],
-      ['Egg yolks', 0.05, '1 µg / 1 large'],
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Top sources',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      color: c.text)),
-              Text('See all',
-                  style: TextStyle(
-                      fontSize: 12, color: hue.fill, fontWeight: FontWeight.w600)),
-            ],
+          child: Text(
+            'Top sources',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: c.text,
+            ),
           ),
         ),
         const SizedBox(height: 10),
-        NVCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: List.generate(foods.length, (i) {
-              final f = foods[i];
-              final name = f[0] as String;
-              final pct = f[1] as double;
-              final amt = f[2] as String;
-              final isLast = i == foods.length - 1;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  border: isLast
-                      ? null
-                      : Border(bottom: BorderSide(color: c.border)),
-                ),
-                child: Row(
-                  children: [
-                    const PhotoPlaceholder(label: '', height: 40, width: 40, radius: 10),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(name,
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w600, color: c.text)),
-                          Text(amt, style: TextStyle(fontSize: 12, color: c.textMuted)),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: 64,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          BarProgress(pct: pct.clamp(0.0, 1.0), color: hue.fill, height: 5),
-                          const SizedBox(height: 4),
-                          Text('${(pct * 100).round()}%',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: c.textMuted,
-                                fontFeatures: const [FontFeature.tabularFigures()],
-                              )),
-                        ],
-                      ),
-                    ),
-                  ],
+        FutureBuilder<List<FoodSummary>>(
+          future: sourcesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const NVCard(
+                padding: EdgeInsets.all(18),
+                child: Center(
+                  child: CircularProgressIndicator(color: NV.accent),
                 ),
               );
-            }),
+            }
+            if (snapshot.hasError) {
+              return NVCard(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Could not load sources: ${snapshot.error}',
+                  style: TextStyle(fontSize: 13, color: c.textMuted),
+                ),
+              );
+            }
+            final foods = snapshot.data ?? const <FoodSummary>[];
+            if (foods.isEmpty) {
+              return NVCard(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No source foods found yet.',
+                  style: TextStyle(fontSize: 13, color: c.textMuted),
+                ),
+              );
+            }
+            return NVCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: List.generate(foods.length, (i) {
+                  final food = foods[i];
+                  final pct = (food.driPercent ?? 0) / 100;
+                  final isLast = i == foods.length - 1;
+                  return InkWell(
+                    onTap: () => context.push('/app/food/${food.id}'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: isLast
+                            ? null
+                            : Border(bottom: BorderSide(color: c.border)),
+                      ),
+                      child: Row(
+                        children: [
+                          FoodPhoto(
+                            label: food.name,
+                            imageUrl: food.imageUrl,
+                            height: 42,
+                            width: 42,
+                            radius: 10,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  food.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: c.text,
+                                  ),
+                                ),
+                                Text(
+                                  food.category,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: c.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 72,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                BarProgress(
+                                  pct: pct.clamp(0.0, 1.0),
+                                  color: hue.fill,
+                                  height: 5,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  food.driPercent == null
+                                      ? '-'
+                                      : '${food.driPercent!.round()}%',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: c.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Source rankings use the extracted percent-Daily-Value profile.',
+            style: TextStyle(fontSize: 11, color: c.textMuted),
           ),
         ),
       ],
@@ -273,7 +375,11 @@ class _TopSources extends StatelessWidget {
   }
 }
 
-class _DeficiencyCard extends StatelessWidget {
+class _LowIntakeCard extends StatelessWidget {
+  const _LowIntakeCard({required this.nutrient});
+
+  final NutrientReference nutrient;
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -283,10 +389,10 @@ class _DeficiencyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionLabel('If you’re low'),
+          const SectionLabel('If intake is low'),
           const SizedBox(height: 6),
           Text(
-            'Fatigue, muscle weakness, and frequent colds can signal low Vitamin D. Winter months and limited sun exposure are common causes.',
+            nutrient.lowNote,
             style: TextStyle(fontSize: 14, color: c.text, height: 1.5),
           ),
         ],

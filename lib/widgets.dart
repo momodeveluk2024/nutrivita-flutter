@@ -45,10 +45,62 @@ class PhotoPlaceholder extends StatelessWidget {
                 fontFamily: 'monospace',
                 fontSize: 10,
                 letterSpacing: 0.5,
-                color: dark ? Colors.white.withValues(alpha: 0.45) : Colors.black.withValues(alpha: 0.42),
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.45)
+                    : Colors.black.withValues(alpha: 0.42),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class FoodPhoto extends StatelessWidget {
+  final String label;
+  final String? imageUrl;
+  final double height;
+  final double? width;
+  final double radius;
+  final String tone;
+
+  const FoodPhoto({
+    super.key,
+    required this.label,
+    this.imageUrl,
+    this.height = 120,
+    this.width,
+    this.radius = 16,
+    this.tone = 'warm',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl?.trim();
+    if (url == null || url.isEmpty) {
+      return PhotoPlaceholder(
+        label: label,
+        height: height,
+        width: width,
+        radius: radius,
+        tone: tone,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Image.network(
+        url,
+        width: width ?? double.infinity,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => PhotoPlaceholder(
+          label: label,
+          height: height,
+          width: width,
+          radius: radius,
+          tone: tone,
         ),
       ),
     );
@@ -101,11 +153,15 @@ class VitaminChip extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        code,
+        nutrientShortLabels[code] ?? code,
         style: TextStyle(
-          fontSize: size * 0.36,
+          fontSize:
+              size *
+              ((nutrientShortLabels[code]?.length ?? code.length) > 2
+                  ? 0.24
+                  : 0.36),
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          letterSpacing: 0,
           color: hue.fill,
         ),
       ),
@@ -146,7 +202,12 @@ class RingProgress extends StatelessWidget {
         children: [
           CustomPaint(
             size: Size(size, size),
-            painter: _RingPainter(pct: pct, color: ringColor, track: trackColor, stroke: stroke),
+            painter: _RingPainter(
+              pct: pct,
+              color: ringColor,
+              track: trackColor,
+              stroke: stroke,
+            ),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
@@ -180,7 +241,12 @@ class _RingPainter extends CustomPainter {
   final double pct;
   final Color color, track;
   final double stroke;
-  _RingPainter({required this.pct, required this.color, required this.track, required this.stroke});
+  _RingPainter({
+    required this.pct,
+    required this.color,
+    required this.track,
+    required this.stroke,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -269,9 +335,7 @@ class NVCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(radius),
-        border: noBorder
-            ? null
-            : Border.all(color: c.border, width: 1),
+        border: noBorder ? null : Border.all(color: c.border, width: 1),
         boxShadow: noBorder
             ? null
             : [
@@ -332,7 +396,9 @@ class NVPrimaryButton extends StatelessWidget {
           backgroundColor: NV.accent,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+          ),
           textStyle: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
