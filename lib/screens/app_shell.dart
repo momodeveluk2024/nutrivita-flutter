@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../core/providers/food_provider.dart';
+import '../core/providers/nutrition_provider.dart';
 import '../theme.dart';
 import 'home.dart';
 import 'explore.dart';
@@ -26,6 +30,14 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) {
+      _index = widget.initialTab;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
@@ -45,7 +57,9 @@ class _AppShellState extends State<AppShell> {
           color: c.surface.withValues(alpha: 0.92),
           border: Border(
             top: BorderSide(
-              color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06),
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.06),
             ),
           ),
         ),
@@ -59,21 +73,29 @@ class _AppShellState extends State<AppShell> {
                 final active = i == _index;
                 return Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _index = i),
+                    onTap: () {
+                      setState(() => _index = i);
+                      _refreshTab(context, i);
+                    },
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(active ? t.iconActive : t.icon,
-                              size: 24, color: active ? NV.accent : c.textMuted),
+                          Icon(
+                            active ? t.iconActive : t.icon,
+                            size: 24,
+                            color: active ? NV.accent : c.textMuted,
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             t.label,
                             style: TextStyle(
                               fontSize: 10.5,
-                              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                              fontWeight: active
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                               color: active ? NV.accent : c.textMuted,
                               letterSpacing: 0.1,
                             ),
@@ -89,6 +111,22 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     );
+  }
+
+  void _refreshTab(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.read<NutritionProvider>().refreshDashboard();
+        break;
+      case 2:
+        final nutrition = context.read<NutritionProvider>();
+        nutrition.refreshDashboard();
+        nutrition.loadWeek();
+        break;
+      case 3:
+        context.read<FoodProvider>().loadFavorites();
+        break;
+    }
   }
 }
 

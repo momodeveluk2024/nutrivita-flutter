@@ -3,9 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food.dart';
+import '../core/models/food_log.dart';
+import '../core/models/nutrient_reference.dart';
 import '../core/providers/food_provider.dart';
+import '../core/providers/nutrition_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'meal_log_detail.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -22,6 +26,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FoodProvider>().loadFavorites();
+      context.read<NutritionProvider>().refreshDashboard();
     });
   }
 
@@ -30,6 +35,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     final provider = context.watch<FoodProvider>();
+    final nutrition = context.watch<NutritionProvider>();
 
     return SafeArea(
       child: Column(
@@ -101,22 +107,158 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () => context.read<FoodProvider>().loadFavorites(),
+              onRefresh: () async {
+                await context.read<FoodProvider>().loadFavorites();
+                if (context.mounted) {
+                  await context.read<NutritionProvider>().refreshDashboard();
+                }
+              },
               child: _tab == 0
                   ? _FoodsList(foods: provider.favorites)
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                      children: [
-                        _EmptyState(
-                          title: _tab == 1
-                              ? 'No saved vitamins yet'
-                              : 'No saved meals yet',
-                          subtitle: _tab == 1
-                              ? 'Vitamin saving will be added after the food MVP.'
-                              : 'Meal templates will be added after logging is wired.',
-                        ),
-                      ],
+                  : _tab == 1
+                  ? const _NutrientsList()
+                  : _MealsList(logs: nutrition.logs),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NutrientsList extends StatelessWidget {
+  const _NutrientsList();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      itemCount: nutrientCatalog.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final nutrient = nutrientCatalog[index];
+        return NVCard(
+          padding: const EdgeInsets.all(12),
+          onTap: () => context.push('/app/vitamin/${nutrient.code}'),
+          child: Row(
+            children: [
+              NutrientPill(
+                code: nutrient.code,
+                label: nutrient.name,
+                compact: true,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nutrient.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: c.text,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      nutrient.summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: c.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: c.textMuted),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MealsList extends StatelessWidget {
+  const _MealsList({required this.logs});
+
+  final List<MealLog> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    if (logs.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        children: const [
+          _EmptyState(
+            title: 'No meals logged today',
+            subtitle: 'Open a food and log it to see recent meals here.',
+          ),
+        ],
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      itemCount: logs.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) => _SavedMeal(log: logs[index]),
+    );
+  }
+}
+
+class _SavedMeal extends StatelessWidget {
+  const _SavedMeal({required this.log});
+
+  final MealLog log;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final items = log.items
+        .map((item) => '${item.foodName} (${item.servingG.round()}g)')
+        .join(', ');
+    final firstItem = log.items.isEmpty ? null : log.items.first;
+    return NVCard(
+      onTap: () => showMealLogDetails(
+        context,
+        log,
+        date: DateTime.tryParse(log.loggedOn),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          FoodPhoto(
+            label: firstItem?.foodName ?? log.mealType,
+            imageUrl: firstItem?.imageUrl,
+            width: 48,
+            height: 48,
+            radius: 15,
+            tone: 'cool',
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  log.mealType,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: c.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  items.isEmpty ? 'No items attached' : items,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: c.textMuted),
+                ),
+              ],
             ),
           ),
         ],

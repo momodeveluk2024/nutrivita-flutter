@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../core/models/food.dart';
 import '../core/models/nutrient_reference.dart';
+import '../core/models/visual_catalog.dart';
 import '../core/providers/food_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -14,11 +16,24 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
+  List<FoodSummary> _foods = [];
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FoodProvider>().searchFoods(limit: 100);
+      _loadCatalog();
+    });
+  }
+
+  Future<void> _loadCatalog() async {
+    setState(() => _loading = true);
+    final foods = await context.read<FoodProvider>().fetchFoods(limit: 100);
+    if (!mounted) return;
+    setState(() {
+      _foods = foods;
+      _loading = false;
     });
   }
 
@@ -26,9 +41,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final foodProvider = context.watch<FoodProvider>();
     final categories = <String, int>{};
-    for (final food in foodProvider.foods) {
+    for (final food in _foods) {
       categories.update(food.category, (value) => value + 1, ifAbsent: () => 1);
     }
     final cats = categories.entries.toList();
@@ -56,7 +70,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${foodProvider.foods.length} foods across ${cats.length} categories',
+                        _loading
+                            ? 'Loading catalog'
+                            : '${_foods.length} foods across ${cats.length} categories',
                         style: TextStyle(fontSize: 14, color: c.textMuted),
                       ),
                     ],
@@ -77,20 +93,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  mainAxisExtent: 150,
+                  mainAxisExtent: 176,
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   children: cats.map((cat) {
                     return _CategoryTile(
                       name: cat.key,
                       count: cat.value,
-                      tone: _toneFor(cat.key),
-                      onTap: () {
-                        context.read<FoodProvider>().searchFoods(
-                          category: cat.key,
-                        );
-                        context.push('/app/search');
-                      },
+                      onTap: () => context.push(
+                        '/app/search?category=${Uri.encodeComponent(cat.key)}',
+                      ),
                     );
                   }).toList(),
                 ),
@@ -122,17 +134,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     );
   }
-
-  Color _toneFor(String category) {
-    return switch (category) {
-      'vegetables' => const Color(0xFFCDE1C2),
-      'seafood' => const Color(0xFFCDD9E3),
-      'dairy' => const Color(0xFFE6ECF0),
-      'nuts' => const Color(0xFFE3D6C8),
-      'legumes' => const Color(0xFFD4DCC2),
-      _ => const Color(0xFFF3D9B5),
-    };
-  }
 }
 
 class _NutrientSection extends StatelessWidget {
@@ -143,8 +144,6 @@ class _NutrientSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -158,30 +157,11 @@ class _NutrientSection extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: nutrients.map((nutrient) {
-              return GestureDetector(
+              return NutrientPill(
+                code: nutrient.code,
+                label: nutrient.name,
+                compact: true,
                 onTap: () => context.push('/app/vitamin/${nutrient.code}'),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(6, 6, 10, 6),
-                  decoration: BoxDecoration(
-                    color: c.surfaceMuted,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      VitaminChip(code: nutrient.code, size: 24),
-                      const SizedBox(width: 6),
-                      Text(
-                        nutrient.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: c.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               );
             }).toList(),
           ),
@@ -194,12 +174,10 @@ class _NutrientSection extends StatelessWidget {
 class _CategoryTile extends StatelessWidget {
   final String name;
   final int count;
-  final Color tone;
   final VoidCallback onTap;
   const _CategoryTile({
     required this.name,
     required this.count,
-    required this.tone,
     required this.onTap,
   });
 
@@ -207,6 +185,7 @@ class _CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
+    final visual = categoryVisualFor(name);
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: GestureDetector(
@@ -220,32 +199,44 @@ class _CategoryTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: dark
-                        ? [
-                            tone.withValues(alpha: 0.13),
-                            tone.withValues(alpha: 0.27),
-                          ]
-                        : [tone, tone.withValues(alpha: 0.87)],
-                  ),
-                ),
+              SizedBox(
+                height: 98,
                 child: Stack(
-                  clipBehavior: Clip.none,
+                  fit: StackFit.expand,
                   children: [
+                    FoodPhoto(
+                      label: name,
+                      imageUrl: visual.imageUrl,
+                      height: 98,
+                      radius: 0,
+                      tone: 'cool',
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.02),
+                            visual.accent.withValues(alpha: dark ? 0.30 : 0.16),
+                          ],
+                        ),
+                      ),
+                    ),
                     Positioned(
-                      bottom: -10,
-                      right: -10,
+                      right: 10,
+                      bottom: 10,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.35),
-                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.82),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          visual.icon,
+                          size: 18,
+                          color: visual.accent,
                         ),
                       ),
                     ),
@@ -258,7 +249,7 @@ class _CategoryTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      name,
+                      visual.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

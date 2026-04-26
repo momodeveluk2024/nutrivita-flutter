@@ -15,6 +15,26 @@ class FoodProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  Future<List<FoodSummary>> fetchFoods({
+    String query = '',
+    String category = '',
+    String nutrient = '',
+    int limit = 25,
+  }) async {
+    final response = await _api.get(
+      ApiEndpoints.foods,
+      query: _foodQuery(
+        query: query,
+        category: category,
+        nutrient: nutrient,
+        limit: limit,
+      ),
+    );
+    return (response.data['foods'] as List? ?? const [])
+        .map((v) => FoodSummary.fromJson(Map<String, dynamic>.from(v as Map)))
+        .toList();
+  }
+
   Future<List<FoodSummary>> searchFoods({
     String query = '',
     String category = '',
@@ -25,18 +45,12 @@ class FoodProvider extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final response = await _api.get(
-        ApiEndpoints.foods,
-        query: {
-          if (query.isNotEmpty) 'q': query,
-          if (category.isNotEmpty) 'category': category,
-          if (nutrient.isNotEmpty) 'nutrient': nutrient,
-          'limit': limit,
-        },
+      foods = await fetchFoods(
+        query: query,
+        category: category,
+        nutrient: nutrient,
+        limit: limit,
       );
-      foods = (response.data['foods'] as List? ?? const [])
-          .map((v) => FoodSummary.fromJson(Map<String, dynamic>.from(v as Map)))
-          .toList();
       return foods;
     } catch (e) {
       error = e.toString();
@@ -87,4 +101,18 @@ class FoodProvider extends ChangeNotifier {
   }
 
   bool isFavorite(String foodId) => favorites.any((f) => f.id == foodId);
+
+  Map<String, dynamic> _foodQuery({
+    required String query,
+    required String category,
+    required String nutrient,
+    required int limit,
+  }) {
+    return {
+      if (query.isNotEmpty) 'q': query,
+      if (category.isNotEmpty) 'category': category,
+      if (nutrient.isNotEmpty) 'nutrient': nutrient,
+      'limit': limit,
+    };
+  }
 }

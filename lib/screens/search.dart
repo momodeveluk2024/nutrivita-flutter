@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food.dart';
+import '../core/models/nutrient_reference.dart';
 import '../core/providers/food_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, this.initialCategory = ''});
+
+  final String initialCategory;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -19,13 +22,17 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
+  int _tab = 0;
+  late String _category = widget.initialCategory;
+  List<FoodSummary> _foods = [];
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FoodProvider>().searchFoods(query: 'salmon');
-      _controller.text = 'salmon';
+      _loadFoods();
     });
   }
 
@@ -39,15 +46,35 @@ class _SearchScreenState extends State<SearchScreen> {
   void _onChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      context.read<FoodProvider>().searchFoods(query: value.trim());
+      _loadFoods();
     });
+  }
+
+  Future<void> _loadFoods() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final foods = await context.read<FoodProvider>().fetchFoods(
+        query: _controller.text.trim(),
+        category: _category,
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() => _foods = foods);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final provider = context.watch<FoodProvider>();
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -107,47 +134,46 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      _tab('Foods', true, c),
+                      _tabButton('Foods', 0, c),
                       const SizedBox(width: 8),
-                      _tab('Vitamins', false, c),
+                      _tabButton('Vitamins', 1, c),
                       const SizedBox(width: 8),
-                      _tab('Recipes', false, c),
+                      _tabButton('Recipes', 2, c),
                     ],
                   ),
+                  if (_category.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InputChip(
+                        label: Text(_category),
+                        avatar: const Icon(Icons.category, size: 16),
+                        onDeleted: () {
+                          setState(() => _category = '');
+                          _loadFoods();
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => context.read<FoodProvider>().searchFoods(
-                  query: _controller.text.trim(),
-                ),
+                onRefresh: _loadFoods,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
-                      child: SectionLabel(
-                        provider.isLoading
-                            ? 'Searching'
-                            : '${provider.foods.length} results',
-                      ),
-                    ),
-                    if (provider.error != null)
-                      _MessageCard(
-                        message: provider.error!,
-                        icon: Icons.error_outline,
-                      )
-                    else if (provider.isLoading)
-                      const _LoadingList()
-                    else if (provider.foods.isEmpty)
-                      const _MessageCard(
-                        message: 'No foods found',
-                        icon: Icons.search_off,
-                      )
-                    else
-                      ...provider.foods.map((food) => _FoodResult(food: food)),
-                  ],
+                  children: _tab == 0
+                      ? _foodResults()
+                      : _tab == 1
+                      ? const [_NutrientResults()]
+                      : const [
+                          _MessageCard(
+                            message:
+                                'Recipes will connect to logged meal templates next.',
+                            icon: Icons.restaurant_menu,
+                          ),
+                        ],
                 ),
               ),
             ),
@@ -157,20 +183,127 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _tab(String label, bool active, NVColors c) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: active ? NV.accent : c.surface,
-        borderRadius: BorderRadius.circular(100),
-        border: active ? null : Border.all(color: c.border),
+  List<Widget> _foodResults() {
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+        child: SectionLabel(
+          _isLoading ? 'Searching' : '${_foods.length} results',
+        ),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: active ? Colors.white : c.text,
+      if (_error != null)
+        _MessageCard(message: _error!, icon: Icons.error_outline)
+      else if (_isLoading)
+        const _LoadingList()
+      else if (_foods.isEmpty)
+        const _MessageCard(message: 'No foods found', icon: Icons.search_off)
+      else
+        ..._foods.map((food) => _FoodResult(food: food)),
+    ];
+  }
+
+  Widget _tabButton(String label, int index, NVColors c) {
+    final active = _tab == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _tab = index);
+        if (index == 0) _loadFoods();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? NV.accent : c.surface,
+          borderRadius: BorderRadius.circular(100),
+          border: active ? null : Border.all(color: c.border),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: NV.accent.withValues(alpha: 0.22),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : c.text,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NutrientResults extends StatelessWidget {
+  const _NutrientResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 10, 4, 8),
+          child: SectionLabel('Nutrients'),
+        ),
+        ...nutrientCatalog.map(
+          (nutrient) => _NutrientResult(nutrient: nutrient),
+        ),
+      ],
+    );
+  }
+}
+
+class _NutrientResult extends StatelessWidget {
+  const _NutrientResult({required this.nutrient});
+
+  final NutrientReference nutrient;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: NVCard(
+        padding: const EdgeInsets.all(12),
+        onTap: () => context.push('/app/vitamin/${nutrient.code}'),
+        child: Row(
+          children: [
+            NutrientPill(
+              code: nutrient.code,
+              label: nutrient.name,
+              compact: true,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nutrient.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: c.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${nutrient.group} - ${nutrient.targetLabel}',
+                    style: TextStyle(fontSize: 12, color: c.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: c.textMuted),
+          ],
         ),
       ),
     );

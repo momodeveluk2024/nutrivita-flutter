@@ -5,6 +5,7 @@ import '../screens/app_shell.dart';
 import '../screens/food_detail.dart';
 import '../screens/onboarding.dart';
 import '../screens/password_reset.dart';
+import '../screens/profile_settings.dart';
 import '../screens/search.dart';
 import '../screens/sign_in.dart';
 import '../screens/sign_up.dart';
@@ -67,10 +68,23 @@ GoRouter buildRouter(AuthProvider auth) {
         builder: (context, state) =>
             VerifyEmailScreen(initialToken: state.uri.queryParameters['token']),
       ),
-      GoRoute(path: '/app', builder: (context, state) => const AppShell()),
+      GoRoute(
+        path: '/app',
+        builder: (context, state) => AppShell(
+          initialTab: switch (state.uri.queryParameters['tab']) {
+            'explore' => 1,
+            'track' => 2,
+            'saved' => 3,
+            'you' => 4,
+            _ => 0,
+          },
+        ),
+      ),
       GoRoute(
         path: '/app/search',
-        builder: (context, state) => const SearchScreen(),
+        builder: (context, state) => SearchScreen(
+          initialCategory: state.uri.queryParameters['category'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/app/food/:id',
@@ -81,6 +95,34 @@ GoRouter buildRouter(AuthProvider auth) {
         path: '/app/vitamin/:code',
         builder: (context, state) =>
             VitaminDetailScreen(code: state.pathParameters['code'] ?? 'D'),
+      ),
+      GoRoute(
+        path: '/app/profile/goals',
+        builder: (context, state) => const ProfileGoalsScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/body',
+        builder: (context, state) => const ProfileBodyScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/diet',
+        builder: (context, state) => const ProfileDietScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/reminders',
+        builder: (context, state) => const ProfileRemindersScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/units',
+        builder: (context, state) => const ProfileUnitsScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/appearance',
+        builder: (context, state) => const ProfileAppearanceScreen(),
+      ),
+      GoRoute(
+        path: '/app/profile/about',
+        builder: (context, state) => const ProfileAboutScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

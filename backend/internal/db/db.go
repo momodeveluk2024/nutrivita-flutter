@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,7 @@ func (s *Store) Ping(ctx context.Context) error {
 type User struct {
 	ID              uuid.UUID  `json:"id"`
 	Email           string     `json:"email"`
+	Role            string     `json:"role"`
 	PasswordHash    string     `json:"-"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
@@ -43,23 +45,23 @@ type User struct {
 }
 
 type Profile struct {
-	UserID          uuid.UUID `json:"user_id"`
-	DisplayName     string    `json:"display_name"`
-	Sex             *string   `json:"sex,omitempty"`
-	DateOfBirth     *string   `json:"date_of_birth,omitempty"`
-	HeightCM        *float64  `json:"height_cm,omitempty"`
-	WeightKG        *float64  `json:"weight_kg,omitempty"`
-	ActivityLevel   *string   `json:"activity_level,omitempty"`
-	PregnancyStatus *string   `json:"pregnancy_status,omitempty"`
-	DietaryPattern  *string   `json:"dietary_pattern,omitempty"`
-	Allergens       []string  `json:"allergens"`
-	Goals           []string  `json:"goals"`
-	Units           string    `json:"units"`
-	Locale          string    `json:"locale"`
-	Timezone        string    `json:"timezone"`
-	Preferences     []byte    `json:"preferences"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	UserID          uuid.UUID       `json:"user_id"`
+	DisplayName     string          `json:"display_name"`
+	Sex             *string         `json:"sex,omitempty"`
+	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
+	HeightCM        *float64        `json:"height_cm,omitempty"`
+	WeightKG        *float64        `json:"weight_kg,omitempty"`
+	ActivityLevel   *string         `json:"activity_level,omitempty"`
+	PregnancyStatus *string         `json:"pregnancy_status,omitempty"`
+	DietaryPattern  *string         `json:"dietary_pattern,omitempty"`
+	Allergens       []string        `json:"allergens"`
+	Goals           []string        `json:"goals"`
+	Units           string          `json:"units"`
+	Locale          string          `json:"locale"`
+	Timezone        string          `json:"timezone"`
+	Preferences     json.RawMessage `json:"preferences"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 type Session struct {
@@ -70,24 +72,25 @@ type Session struct {
 }
 
 type Me struct {
-	ID              uuid.UUID  `json:"id"`
-	Email           string     `json:"email"`
-	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	DisplayName     string     `json:"display_name"`
-	Sex             *string    `json:"sex,omitempty"`
-	DateOfBirth     *string    `json:"date_of_birth,omitempty"`
-	HeightCM        *float64   `json:"height_cm,omitempty"`
-	WeightKG        *float64   `json:"weight_kg,omitempty"`
-	ActivityLevel   *string    `json:"activity_level,omitempty"`
-	PregnancyStatus *string    `json:"pregnancy_status,omitempty"`
-	DietaryPattern  *string    `json:"dietary_pattern,omitempty"`
-	Allergens       []string   `json:"allergens"`
-	Goals           []string   `json:"goals"`
-	Units           string     `json:"units"`
-	Locale          string     `json:"locale"`
-	Timezone        string     `json:"timezone"`
-	Preferences     []byte     `json:"preferences"`
+	ID              uuid.UUID       `json:"id"`
+	Email           string          `json:"email"`
+	Role            string          `json:"role"`
+	EmailVerifiedAt *time.Time      `json:"email_verified_at,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	DisplayName     string          `json:"display_name"`
+	Sex             *string         `json:"sex,omitempty"`
+	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
+	HeightCM        *float64        `json:"height_cm,omitempty"`
+	WeightKG        *float64        `json:"weight_kg,omitempty"`
+	ActivityLevel   *string         `json:"activity_level,omitempty"`
+	PregnancyStatus *string         `json:"pregnancy_status,omitempty"`
+	DietaryPattern  *string         `json:"dietary_pattern,omitempty"`
+	Allergens       []string        `json:"allergens"`
+	Goals           []string        `json:"goals"`
+	Units           string          `json:"units"`
+	Locale          string          `json:"locale"`
+	Timezone        string          `json:"timezone"`
+	Preferences     json.RawMessage `json:"preferences"`
 }
 
 type CreateUserParams struct {
@@ -108,10 +111,11 @@ func (s *Store) CreateUserWithProfile(ctx context.Context, params CreateUserPara
 	err = tx.QueryRow(ctx, `
 		INSERT INTO users (id, email, password_hash)
 		VALUES ($1, $2, $3)
-		RETURNING id, email, password_hash, email_verified_at, created_at, updated_at
+		RETURNING id, email, role, password_hash, email_verified_at, created_at, updated_at
 	`, params.ID, params.Email, params.PasswordHash).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Role,
 		&user.PasswordHash,
 		&user.EmailVerifiedAt,
 		&user.CreatedAt,
@@ -150,12 +154,13 @@ func (s *Store) CreateUserWithProfile(ctx context.Context, params CreateUserPara
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, email_verified_at, created_at, updated_at
+		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at
 		FROM users
 		WHERE email = $1 AND deleted_at IS NULL
 	`, email).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Role,
 		&user.PasswordHash,
 		&user.EmailVerifiedAt,
 		&user.CreatedAt,
@@ -167,12 +172,13 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) 
 func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	var user User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, email_verified_at, created_at, updated_at
+		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
 	`, id).Scan(
 		&user.ID,
 		&user.Email,
+		&user.Role,
 		&user.PasswordHash,
 		&user.EmailVerifiedAt,
 		&user.CreatedAt,
@@ -240,6 +246,16 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID uuid.UUID) error {
 		SET revoked_at = now()
 		WHERE id = $1 AND revoked_at IS NULL
 	`, sessionID)
+	return err
+}
+
+func (s *Store) SetUserRole(ctx context.Context, userID uuid.UUID, role string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE users
+		SET role = $2,
+		    updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL
+	`, userID, role)
 	return err
 }
 
@@ -342,6 +358,7 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		SELECT
 		    u.id,
 		    u.email,
+		    u.role,
 		    u.email_verified_at,
 		    u.created_at,
 		    p.display_name,
@@ -364,6 +381,7 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 	`, userID).Scan(
 		&me.ID,
 		&me.Email,
+		&me.Role,
 		&me.EmailVerifiedAt,
 		&me.CreatedAt,
 		&me.DisplayName,

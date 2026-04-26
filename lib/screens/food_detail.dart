@@ -81,48 +81,100 @@ class _FoodDetailBody extends StatelessWidget {
     final isReferenceProfile = food.source.contains('percent Daily Value');
     final canLog = food.breakdown.any((nutrient) => nutrient.amountPer100G > 0);
 
-    return Column(
-      children: [
-        Stack(
-          children: [
-            FoodPhoto(
-              label: food.name,
-              imageUrl: food.imageUrl,
-              height: 260,
-              radius: 0,
-              tone: 'warm',
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 14,
-              left: 16,
-              right: 16,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  NVCircleIconButton(
-                    icon: Icons.chevron_left,
-                    background: Colors.white.withValues(alpha: 0.85),
-                    onTap: () => Navigator.of(context).maybePop(),
-                  ),
-                  NVCircleIconButton(
-                    icon: isFavorite ? Icons.favorite : Icons.favorite_outline,
-                    background: Colors.white.withValues(alpha: 0.85),
-                    onTap: () {
-                      if (isFavorite) {
-                        context.read<FoodProvider>().removeFavorite(food.id);
-                      } else {
-                        context.read<FoodProvider>().addFavorite(food.id);
-                      }
-                    },
-                  ),
-                ],
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Stack(
+            children: [
+              FoodPhoto(
+                label: food.name,
+                imageUrl: food.imageUrl,
+                height: 320,
+                radius: 0,
+                tone: 'warm',
               ),
-            ),
-          ],
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.18),
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.42),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 14,
+                left: 16,
+                right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    NVCircleIconButton(
+                      icon: Icons.chevron_left,
+                      background: Colors.white.withValues(alpha: 0.92),
+                      foreground: NV.text,
+                      onTap: () => Navigator.of(context).maybePop(),
+                    ),
+                    NVCircleIconButton(
+                      icon: isFavorite
+                          ? Icons.favorite
+                          : Icons.favorite_outline,
+                      background: Colors.white.withValues(alpha: 0.92),
+                      foreground: isFavorite ? NV.accent : NV.text,
+                      onTap: () {
+                        if (isFavorite) {
+                          context.read<FoodProvider>().removeFavorite(food.id);
+                        } else {
+                          context.read<FoodProvider>().addFavorite(food.id);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 22,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      food.category.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      food.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 27,
+                        fontWeight: FontWeight.w800,
+                        height: 1.08,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverList.list(
             children: [
               Text(
                 food.category.toUpperCase(),
@@ -295,6 +347,7 @@ class _FoodDetailBody extends StatelessWidget {
   void _showLogSheet(BuildContext context, FoodDetail food) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _LogFoodSheet(food: food),
     );
@@ -347,6 +400,7 @@ class _LogFoodSheet extends StatefulWidget {
 class _LogFoodSheetState extends State<_LogFoodSheet> {
   String _mealType = 'breakfast';
   double _servingG = 100;
+  DateTime _loggedOn = DateTime.now();
   bool _saving = false;
 
   Future<void> _save() async {
@@ -356,6 +410,7 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
         foodId: widget.food.id,
         servingG: _servingG,
         mealType: _mealType,
+        date: _loggedOn,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -377,8 +432,13 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -392,18 +452,61 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              initialValue: _mealType,
-              decoration: const InputDecoration(labelText: 'Meal'),
-              items: const [
-                DropdownMenuItem(value: 'breakfast', child: Text('Breakfast')),
-                DropdownMenuItem(value: 'lunch', child: Text('Lunch')),
-                DropdownMenuItem(value: 'snack', child: Text('Snack')),
-                DropdownMenuItem(value: 'dinner', child: Text('Dinner')),
-                DropdownMenuItem(value: 'other', child: Text('Other')),
-              ],
-              onChanged: (value) =>
-                  setState(() => _mealType = value ?? 'breakfast'),
+            NVSelectField(
+              label: 'Meal',
+              value: _mealType,
+              values: const ['breakfast', 'lunch', 'snack', 'dinner', 'other'],
+              display: _humanize,
+              onChanged: (value) {
+                if (value != null) setState(() => _mealType = value);
+              },
+            ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: _pickDate,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Date',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: c.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _dateLabel(_loggedOn),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: c.text,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        color: NV.accent,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -429,4 +532,35 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
       ),
     );
   }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _loggedOn,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _loggedOn = picked);
+    }
+  }
+}
+
+String _humanize(String value) {
+  if (value.isEmpty) return value;
+  return value
+      .split(RegExp(r'[\s_-]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
+
+String _dateLabel(DateTime date) {
+  final today = DateTime.now();
+  if (date.year == today.year &&
+      date.month == today.month &&
+      date.day == today.day) {
+    return 'Today';
+  }
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }

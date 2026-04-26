@@ -60,13 +60,25 @@ func (s *Store) ListFavorites(ctx context.Context, userID uuid.UUID) ([]FoodSumm
 			f.category,
 			f.serving_size_g::float8,
 			f.verified,
-			COALESCE(array_agg(n.code ORDER BY n.code) FILTER (WHERE n.code IS NOT NULL), '{}')::text[] AS nutrient_codes
+			f.image_url,
+			COALESCE(ARRAY(
+				SELECT code
+				FROM (
+					SELECT DISTINCT n.code
+					FROM food_nutrients fn
+					JOIN nutrients n ON n.id = fn.nutrient_id
+					WHERE fn.food_id = f.id
+					UNION
+					SELECT DISTINCT n.code
+					FROM food_nutrient_daily_values fdv
+					JOIN nutrients n ON n.id = fdv.nutrient_id
+					WHERE fdv.food_id = f.id
+				) nutrient_codes
+				ORDER BY code
+			), '{}')::text[] AS nutrient_codes
 		FROM favorites fav
 		JOIN foods f ON f.id = fav.food_id
-		LEFT JOIN food_nutrients fn ON fn.food_id = f.id
-		LEFT JOIN nutrients n ON n.id = fn.nutrient_id
 		WHERE fav.user_id = $1 AND f.deleted_at IS NULL
-		GROUP BY f.id, fav.created_at
 		ORDER BY fav.created_at DESC
 	`, userID)
 	if err != nil {
@@ -77,7 +89,7 @@ func (s *Store) ListFavorites(ctx context.Context, userID uuid.UUID) ([]FoodSumm
 	foods := []FoodSummary{}
 	for rows.Next() {
 		var food FoodSummary
-		if err := rows.Scan(&food.ID, &food.Name, &food.Brand, &food.Category, &food.ServingSizeG, &food.Verified, &food.Nutrients); err != nil {
+		if err := rows.Scan(&food.ID, &food.Name, &food.Brand, &food.Category, &food.ServingSizeG, &food.Verified, &food.ImageURL, &food.Nutrients); err != nil {
 			return nil, err
 		}
 		foods = append(foods, food)

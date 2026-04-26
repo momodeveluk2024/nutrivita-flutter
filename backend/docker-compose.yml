@@ -46,5 +46,28 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  marketing:
+    build:
+      context: ../../web/marketing
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: ../../web/admin
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://api:8080/v1
+    depends_on:
+      - api
+
 volumes:
   nutrivita-postgres-data:

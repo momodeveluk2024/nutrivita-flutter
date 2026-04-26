@@ -6,15 +6,15 @@ import 'api_exceptions.dart';
 
 class ApiClient {
   ApiClient({required SecureTokenStorage tokenStorage})
-      : _tokenStorage = tokenStorage,
-        dio = Dio(
-          BaseOptions(
-            baseUrl: ApiEndpoints.baseUrl,
-            connectTimeout: const Duration(seconds: 30),
-            receiveTimeout: const Duration(seconds: 30),
-            headers: {'Content-Type': 'application/json'},
-          ),
-        ) {
+    : _tokenStorage = tokenStorage,
+      dio = Dio(
+        BaseOptions(
+          baseUrl: ApiEndpoints.baseUrl,
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ) {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -27,8 +27,11 @@ class ApiClient {
         onError: (error, handler) async {
           final response = error.response;
           final alreadyRetried = error.requestOptions.extra['retried'] == true;
-          final isRefreshCall = error.requestOptions.path == ApiEndpoints.refresh;
-          if (response?.statusCode == 401 && !alreadyRetried && !isRefreshCall) {
+          final isRefreshCall =
+              error.requestOptions.path == ApiEndpoints.refresh;
+          if (response?.statusCode == 401 &&
+              !alreadyRetried &&
+              !isRefreshCall) {
             final refreshed = await _refreshTokens();
             if (refreshed) {
               final retryOptions = error.requestOptions;
@@ -67,6 +70,10 @@ class ApiClient {
     return _guard(() => dio.put<dynamic>(path, data: data));
   }
 
+  Future<Response<dynamic>> patch(String path, {Object? data}) {
+    return _guard(() => dio.patch<dynamic>(path, data: data));
+  }
+
   Future<Response<dynamic>> delete(String path) {
     return _guard(() => dio.delete<dynamic>(path));
   }
@@ -80,7 +87,9 @@ class ApiClient {
   }
 
   Future<bool> _refreshTokens() {
-    _refreshInFlight ??= _doRefresh().whenComplete(() => _refreshInFlight = null);
+    _refreshInFlight ??= _doRefresh().whenComplete(
+      () => _refreshInFlight = null,
+    );
     return _refreshInFlight!;
   }
 

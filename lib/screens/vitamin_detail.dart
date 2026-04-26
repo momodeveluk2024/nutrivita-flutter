@@ -26,7 +26,7 @@ class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
     _nutrient =
         nutrientReferencesByCode[widget.code] ?? nutrientReferencesByCode['D']!;
     final provider = context.read<FoodProvider>();
-    _sourcesFuture = provider.searchFoods(nutrient: _nutrient.code, limit: 8);
+    _sourcesFuture = provider.fetchFoods(nutrient: _nutrient.code, limit: 8);
   }
 
   @override
@@ -52,17 +52,19 @@ class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
                       NVCircleIconButton(
                         icon: Icons.chevron_left,
                         background: c.surface,
+                        foreground: c.text,
                         onTap: () => Navigator.of(context).maybePop(),
                       ),
                       NVCircleIconButton(
                         icon: Icons.search,
                         background: c.surface,
+                        foreground: c.text,
                         onTap: () => context.push('/app/search'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  VitaminChip(code: _nutrient.code, size: 64),
+                  NutrientArtwork(code: _nutrient.code, name: _nutrient.name),
                   const SizedBox(height: 12),
                   Text(
                     _nutrient.name,

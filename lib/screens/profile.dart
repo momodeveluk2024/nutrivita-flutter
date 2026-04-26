@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 import '../core/providers/auth_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -54,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         child: Text(
                           initials,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -110,6 +111,7 @@ class ProfileScreen extends StatelessWidget {
                 if (!isVerified) ...[
                   const SizedBox(height: 14),
                   NVCard(
+                    onTap: () => context.go('/verify-email'),
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
@@ -117,7 +119,7 @@ class ProfileScreen extends StatelessWidget {
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: NV.accentSoft,
                             shape: BoxShape.circle,
                           ),
@@ -151,17 +153,14 @@ class ProfileScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Verify email',
-                          onPressed: () => context.go('/verify-email'),
-                          icon: const Icon(Icons.chevron_right, size: 20),
-                        ),
+                        Icon(Icons.chevron_right, size: 20, color: c.textMuted),
                       ],
                     ),
                   ),
                 ],
                 const SizedBox(height: 14),
                 NVCard(
+                  onTap: () => context.go('/app?tab=track'),
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
@@ -208,9 +207,9 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: const SectionLabel('Your profile'),
+                const SectionLabel(
+                  'Your profile',
+                  padding: EdgeInsets.only(left: 4, bottom: 8),
                 ),
                 NVCard(
                   padding: EdgeInsets.zero,
@@ -219,33 +218,37 @@ class ProfileScreen extends StatelessWidget {
                       _Row(
                         icon: Icons.gps_fixed,
                         title: 'Goals',
-                        detail: 'Immunity · Energy',
+                        detail: user?.goalsSummary ?? 'Set goals',
+                        onTap: () => context.push('/app/profile/goals'),
                       ),
                       _div(c),
                       _Row(
                         icon: Icons.person_outline,
                         title: 'Body details',
-                        detail: 'F, 28, 165 cm',
+                        detail: user?.bodySummary ?? 'Add details',
+                        onTap: () => context.push('/app/profile/body'),
                       ),
                       _div(c),
                       _Row(
                         icon: Icons.eco_outlined,
                         title: 'Dietary preferences',
-                        detail: 'Pescatarian',
+                        detail: user?.dietSummary ?? 'Set preferences',
+                        onTap: () => context.push('/app/profile/diet'),
                       ),
                       _div(c),
                       _Row(
                         icon: Icons.notifications_outlined,
                         title: 'Reminders',
-                        detail: 'On',
+                        detail: user?.remindersSummary ?? 'Manage',
+                        onTap: () => context.push('/app/profile/reminders'),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: const SectionLabel('Settings'),
+                const SectionLabel(
+                  'Settings',
+                  padding: EdgeInsets.only(left: 4, bottom: 8),
                 ),
                 NVCard(
                   padding: EdgeInsets.zero,
@@ -254,19 +257,23 @@ class ProfileScreen extends StatelessWidget {
                       _Row(
                         icon: Icons.settings_outlined,
                         title: 'Units',
-                        detail: 'Metric',
+                        detail: user?.unitsLabel ?? 'Metric',
+                        onTap: () => context.push('/app/profile/units'),
                       ),
                       _div(c),
                       _Row(
                         icon: Icons.auto_awesome_outlined,
                         title: 'Appearance',
-                        detail: dark ? 'Dark' : 'Light',
+                        detail:
+                            user?.appearanceLabel ?? (dark ? 'Dark' : 'Light'),
+                        onTap: () => context.push('/app/profile/appearance'),
                       ),
                       _div(c),
                       _Row(
                         icon: Icons.info_outline,
                         title: 'About NutriVita',
                         detail: '',
+                        onTap: () => context.push('/app/profile/about'),
                       ),
                     ],
                   ),
@@ -293,7 +300,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Center(
                   child: Text(
-                    'Version 1.0.0 · Made with care',
+                    'Version 1.0.0 - Made with care',
                     style: TextStyle(fontSize: 12, color: c.textMuted),
                   ),
                 ),
@@ -309,45 +316,65 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
+  const _Row({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    this.onTap,
+  });
+
   final IconData icon;
   final String title;
   final String detail;
-  const _Row({required this.icon, required this.title, required this.detail});
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: c.surfaceMuted,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(icon, size: 16, color: c.text),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: c.text,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: c.surfaceMuted,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, size: 16, color: c.text),
               ),
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: c.text,
+                  ),
+                ),
+              ),
+              if (detail.isNotEmpty)
+                Flexible(
+                  child: Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.textMuted),
+                  ),
+                ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 16, color: c.textMuted),
+            ],
           ),
-          if (detail.isNotEmpty)
-            Text(detail, style: TextStyle(fontSize: 13, color: c.textMuted)),
-          const SizedBox(width: 4),
-          Icon(Icons.chevron_right, size: 16, color: c.textMuted),
-        ],
+        ),
       ),
     );
   }

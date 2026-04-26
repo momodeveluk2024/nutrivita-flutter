@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'core/models/visual_catalog.dart';
 import 'theme.dart';
 
 /// Striped placeholder — signals "real food photo goes here".
@@ -22,38 +23,75 @@ class PhotoPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final Color a, b;
-    if (tone == 'warm') {
-      a = dark ? const Color(0xFF2A2420) : const Color(0xFFE9E0D2);
-      b = dark ? const Color(0xFF322A24) : const Color(0xFFF0E8DB);
-    } else {
-      a = dark ? const Color(0xFF1F2A23) : const Color(0xFFDFE8DE);
-      b = dark ? const Color(0xFF253128) : const Color(0xFFE7EFE5);
-    }
+    final initials = _initials(label);
+    final base = tone == 'warm' ? const Color(0xFFB98B55) : NV.accent;
+    final bg = dark ? const Color(0xFF17211C) : const Color(0xFFF0F4EC);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: CustomPaint(
-        painter: _StripePainter(a: a, b: b),
-        child: SizedBox(
-          width: width ?? double.infinity,
-          height: height,
-          child: Center(
-            child: Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 10,
-                letterSpacing: 0.5,
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.45)
-                    : Colors.black.withValues(alpha: 0.42),
+      child: Container(
+        width: width ?? double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          color: bg,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              base.withValues(alpha: dark ? 0.30 : 0.18),
+              bg,
+              base.withValues(alpha: dark ? 0.18 : 0.10),
+            ],
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned(
+              right: -height * 0.12,
+              bottom: -height * 0.18,
+              child: Icon(
+                Icons.eco,
+                size: height * 0.78,
+                color: base.withValues(alpha: dark ? 0.12 : 0.10),
               ),
             ),
-          ),
+            Center(
+              child: Container(
+                padding: EdgeInsets.all(math.max(6, height * 0.10)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: dark ? 0.08 : 0.46),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: dark ? 0.08 : 0.55),
+                  ),
+                ),
+                child: Text(
+                  initials,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: math.max(9, height * 0.18),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: base.withValues(alpha: dark ? 0.88 : 0.95),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  String _initials(String value) {
+    final words = value
+        .split(RegExp(r'[^A-Za-z0-9]+'))
+        .where((word) => word.isNotEmpty)
+        .take(2)
+        .toList();
+    if (words.isEmpty) return 'NV';
+    return words.map((word) => word[0]).join().toUpperCase();
   }
 }
 
@@ -95,6 +133,17 @@ class FoodPhoto extends StatelessWidget {
         width: width ?? double.infinity,
         height: height,
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return PhotoPlaceholder(
+            label: label,
+            height: height,
+            width: width,
+            radius: 0,
+            tone: tone,
+          );
+        },
         errorBuilder: (context, error, stackTrace) => PhotoPlaceholder(
           label: label,
           height: height,
@@ -107,34 +156,6 @@ class FoodPhoto extends StatelessWidget {
   }
 }
 
-class _StripePainter extends CustomPainter {
-  final Color a, b;
-  _StripePainter({required this.a, required this.b});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pa = Paint()..color = a;
-    final pb = Paint()..color = b;
-    canvas.drawRect(Offset.zero & size, pa);
-
-    const stripeWidth = 10.0;
-    canvas.save();
-    canvas.translate(size.width / 2, size.height / 2);
-    canvas.rotate(135 * math.pi / 180);
-    final diag = math.sqrt(size.width * size.width + size.height * size.height);
-    for (double x = -diag; x < diag; x += stripeWidth * 2) {
-      canvas.drawRect(
-        Rect.fromLTWH(x + stripeWidth, -diag, stripeWidth, diag * 2),
-        pb,
-      );
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _StripePainter old) => old.a != a || old.b != b;
-}
-
 class VitaminChip extends StatelessWidget {
   final String code;
   final double size;
@@ -144,6 +165,7 @@ class VitaminChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final hue = vitaminColors[code] ?? vitaminColors['C']!;
+    final visual = nutrientVisualFor(code);
     return Container(
       width: size,
       height: size,
@@ -152,20 +174,191 @@ class VitaminChip extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: Text(
-        nutrientShortLabels[code] ?? code,
-        style: TextStyle(
-          fontSize:
-              size *
-              ((nutrientShortLabels[code]?.length ?? code.length) > 2
-                  ? 0.24
-                  : 0.36),
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0,
-          color: hue.fill,
+      child: Icon(visual.icon, size: size * 0.46, color: hue.fill),
+    );
+  }
+}
+
+class NutrientPill extends StatelessWidget {
+  const NutrientPill({
+    super.key,
+    required this.code,
+    required this.label,
+    this.onTap,
+    this.compact = false,
+  });
+
+  final String code;
+  final String label;
+  final VoidCallback? onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final visual = nutrientVisualFor(code);
+    final bg = dark
+        ? visual.accent.withValues(alpha: 0.16)
+        : visual.accent.withValues(alpha: 0.09);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.fromLTRB(6, 5, compact ? 8 : 10, 5),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: visual.accent.withValues(alpha: 0.10)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: compact ? 20 : 24,
+                height: compact ? 20 : 24,
+                decoration: BoxDecoration(
+                  color: dark
+                      ? Colors.white.withValues(alpha: 0.07)
+                      : Colors.white.withValues(alpha: 0.76),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  visual.icon,
+                  size: compact ? 11 : 13,
+                  color: visual.accent,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: compact ? 11 : 12,
+                  fontWeight: FontWeight.w700,
+                  color: c.text,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class NutrientArtwork extends StatelessWidget {
+  const NutrientArtwork({
+    super.key,
+    required this.code,
+    required this.name,
+    this.height = 150,
+    this.radius = 24,
+  });
+
+  final String code;
+  final String name;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final hue = vitaminColors[code] ?? vitaminColors['C']!;
+    final visual = nutrientVisualFor(code);
+    final icon = visual.icon;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              dark ? hue.fill.withValues(alpha: 0.28) : hue.bg,
+              dark ? const Color(0xFF17211C) : Colors.white,
+              hue.fill.withValues(alpha: dark ? 0.20 : 0.16),
+            ],
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned(
+              right: -26,
+              top: -20,
+              child: Icon(
+                icon,
+                size: height * 0.86,
+                color: hue.fill.withValues(alpha: dark ? 0.12 : 0.10),
+              ),
+            ),
+            Positioned(
+              left: 18,
+              bottom: 16,
+              child: Row(
+                children: [
+                  VitaminChip(code: code, size: 58),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: dark ? NV.textDark : NV.text,
+                        ),
+                      ),
+                      Text(
+                        _artLabel(code),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: hue.fill,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 18,
+              bottom: 18,
+              child: Icon(icon, size: 34, color: hue.fill),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _artLabel(String code) {
+    if (code.startsWith('B')) return 'B-complex support';
+    if ([
+      'Fe',
+      'Ca',
+      'Zn',
+      'Mg',
+      'Kp',
+      'Na',
+      'P',
+      'Se',
+      'Mn',
+      'S',
+    ].contains(code)) {
+      return 'Mineral profile';
+    }
+    if (['Protein', 'Fiber', 'Carbs', 'Fat'].contains(code)) {
+      return 'Macro target';
+    }
+    return 'Daily value guide';
   }
 }
 
@@ -194,45 +387,57 @@ class RingProgress extends StatelessWidget {
     final ringColor = color ?? NV.accent;
     final trackColor = dark ? NV.borderDark : const Color(0xFFE5E8DF);
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: Size(size, size),
-            painter: _RingPainter(
-              pct: pct,
-              color: ringColor,
-              track: trackColor,
-              stroke: stroke,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
+    final targetPct = pct.clamp(0.0, 1.0);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: targetPct),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        final animatedLabel = label.endsWith('%')
+            ? '${(value * 100).round()}%'
+            : label;
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: size * 0.22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                  color: c.text,
+              CustomPaint(
+                size: Size(size, size),
+                painter: _RingPainter(
+                  pct: value,
+                  color: ringColor,
+                  track: trackColor,
+                  stroke: stroke,
                 ),
               ),
-              if (sub != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Text(
-                    sub!,
-                    style: TextStyle(fontSize: 10, color: c.textMuted),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    animatedLabel,
+                    style: TextStyle(
+                      fontSize: size * 0.22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                      color: c.text,
+                    ),
                   ),
-                ),
+                  if (sub != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        sub!,
+                        style: TextStyle(fontSize: 10, color: c.textMuted),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -255,11 +460,31 @@ class _RingPainter extends CustomPainter {
     final trackPaint = Paint()
       ..color = track
       ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke;
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, r, trackPaint);
 
+    final shadowPaint = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke + 5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: r),
+      -math.pi / 2,
+      2 * math.pi * pct,
+      false,
+      shadowPaint,
+    );
+
     final arcPaint = Paint()
-      ..color = color
+      ..shader = SweepGradient(
+        colors: [
+          color.withValues(alpha: 0.78),
+          color,
+          color.withValues(alpha: 0.88),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: r))
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
@@ -287,24 +512,242 @@ class BarProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final track = dark ? NV.borderDark : const Color(0xFFE5E8DF);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(height),
-      child: Container(
-        height: height,
-        color: track,
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: pct.clamp(0.0, 1.0),
+    final fill = color ?? NV.accent;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: pct.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: 760),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(height),
           child: Container(
+            height: height,
             decoration: BoxDecoration(
-              color: color ?? NV.accent,
-              borderRadius: BorderRadius.circular(height),
+              color: track,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.22 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: value,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      fill.withValues(alpha: 0.78),
+                      fill,
+                      Color.lerp(fill, Colors.white, dark ? 0.10 : 0.20)!,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(height),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class NVSelectField extends StatelessWidget {
+  const NVSelectField({
+    super.key,
+    required this.label,
+    required this.values,
+    required this.onChanged,
+    this.value,
+    this.display,
+  });
+
+  final String label;
+  final String? value;
+  final List<String> values;
+  final String Function(String value)? display;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final displayValue = value == null ? 'Choose' : _display(value!);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _open(context),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: c.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.18 : 0.04),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: c.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        displayValue,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: value == null ? c.textMuted : c.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? NV.accent.withValues(alpha: 0.14)
+                        : NV.accentSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: NV.accent,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+
+  Future<void> _open(BuildContext context) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final dark = Theme.of(sheetContext).brightness == Brightness.dark;
+        final c = NVColors(dark);
+        return SafeArea(
+          top: false,
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: c.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.42 : 0.12),
+                  blurRadius: 30,
+                  offset: const Offset(0, 16),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: c.border,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: c.text,
+                    ),
+                  ),
+                ),
+                ...values.map((option) {
+                  final selected = option == value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Material(
+                      color: selected
+                          ? (dark
+                                ? NV.accent.withValues(alpha: 0.14)
+                                : NV.accentSoft)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.of(sheetContext).pop(option),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _display(option),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: c.text,
+                                  ),
+                                ),
+                              ),
+                              if (selected)
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: NV.accent,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selected != null) onChanged(selected);
+  }
+
+  String _display(String value) => display?.call(value) ?? value;
 }
 
 /// Reusable card surface.
@@ -391,7 +834,7 @@ class NVPrimaryButton extends StatelessWidget {
       height: height,
       width: width ?? double.infinity,
       child: ElevatedButton(
-        onPressed: onPressed ?? () {},
+        onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: NV.accent,
           foregroundColor: Colors.white,
@@ -430,12 +873,14 @@ class NVCircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final Color? background;
+  final Color? foreground;
   final double size;
   const NVCircleIconButton({
     super.key,
     required this.icon,
     this.onTap,
     this.background,
+    this.foreground,
     this.size = 36,
   });
 
@@ -446,13 +891,19 @@ class NVCircleIconButton extends StatelessWidget {
     return Material(
       color: background ?? c.surfaceMuted,
       shape: const CircleBorder(),
+      shadowColor: Colors.black.withValues(alpha: dark ? 0.40 : 0.12),
+      elevation: 2,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(
+        child: Container(
           width: size,
           height: size,
-          child: Icon(icon, size: 18, color: c.text),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: c.border.withValues(alpha: 0.70)),
+          ),
+          child: Icon(icon, size: 18, color: foreground ?? c.text),
         ),
       ),
     );

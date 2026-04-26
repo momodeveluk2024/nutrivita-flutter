@@ -3,12 +3,14 @@ class MealLogItem {
     required this.id,
     required this.foodId,
     required this.foodName,
+    this.imageUrl,
     required this.servingG,
   });
 
   final String id;
   final String foodId;
   final String foodName;
+  final String? imageUrl;
   final double servingG;
 
   factory MealLogItem.fromJson(Map<String, dynamic> json) {
@@ -16,6 +18,7 @@ class MealLogItem {
       id: json['id'] as String,
       foodId: json['food_id'] as String,
       foodName: json['food_name'] as String? ?? 'Food',
+      imageUrl: json['image_url'] as String?,
       servingG: (json['serving_g'] as num?)?.toDouble() ?? 0,
     );
   }

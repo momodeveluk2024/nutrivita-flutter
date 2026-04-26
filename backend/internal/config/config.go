@@ -29,7 +29,7 @@ func Load() (Config, error) {
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AccessTokenTTL:  getDurationEnv("ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL: getDurationEnv("REFRESH_TOKEN_TTL", 30*24*time.Hour),
-		AllowedOrigins:  splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")),
+		AllowedOrigins:  splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3002,http://localhost:5173")),
 	}
 
 	if cfg.DatabaseURL == "" {

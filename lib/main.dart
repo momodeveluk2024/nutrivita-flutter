@@ -6,9 +6,12 @@ import 'core/api/api_client.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/food_provider.dart';
 import 'core/providers/nutrition_provider.dart';
+import 'core/providers/reminder_provider.dart';
 import 'core/router.dart';
 import 'core/storage/secure_storage.dart';
 import 'theme.dart';
+
+const _enableDevicePreview = bool.fromEnvironment('ENABLE_DEVICE_PREVIEW');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,9 +25,14 @@ Future<void> main() async {
     authProvider: authProvider,
     foodProvider: FoodProvider(api: api),
     nutritionProvider: NutritionProvider(api: api),
+    reminderProvider: ReminderProvider(api: api),
   );
 
-  runApp(kDebugMode ? DevicePreview(builder: (_) => app) : app);
+  runApp(
+    kDebugMode && _enableDevicePreview
+        ? DevicePreview(builder: (_) => app)
+        : app,
+  );
 }
 
 class NutriVitaApp extends StatelessWidget {
@@ -33,11 +41,13 @@ class NutriVitaApp extends StatelessWidget {
     required this.authProvider,
     required this.foodProvider,
     required this.nutritionProvider,
+    required this.reminderProvider,
   });
 
   final AuthProvider authProvider;
   final FoodProvider foodProvider;
   final NutritionProvider nutritionProvider;
+  final ReminderProvider reminderProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -45,19 +55,33 @@ class NutriVitaApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<FoodProvider>.value(value: foodProvider),
-        ChangeNotifierProvider<NutritionProvider>.value(value: nutritionProvider),
+        ChangeNotifierProvider<NutritionProvider>.value(
+          value: nutritionProvider,
+        ),
+        ChangeNotifierProvider<ReminderProvider>.value(value: reminderProvider),
       ],
       child: Builder(
         builder: (context) {
           final router = buildRouter(authProvider);
+          final appearance = context.select<AuthProvider, String>(
+            (provider) => provider.user?.appearance ?? 'light',
+          );
           return MaterialApp.router(
-            locale: DevicePreview.locale(context),
-            builder: DevicePreview.appBuilder,
+            locale: kDebugMode && _enableDevicePreview
+                ? DevicePreview.locale(context)
+                : null,
+            builder: kDebugMode && _enableDevicePreview
+                ? DevicePreview.appBuilder
+                : null,
             title: 'NutriVita',
             debugShowCheckedModeBanner: false,
             theme: NVTheme.light(),
             darkTheme: NVTheme.dark(),
-            themeMode: ThemeMode.light,
+            themeMode: switch (appearance) {
+              'dark' => ThemeMode.dark,
+              'system' => ThemeMode.system,
+              _ => ThemeMode.light,
+            },
             routerConfig: router,
           );
         },

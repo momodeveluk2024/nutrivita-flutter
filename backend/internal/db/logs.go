@@ -22,6 +22,7 @@ type MealLogItem struct {
 	ID       uuid.UUID `json:"id"`
 	FoodID   uuid.UUID `json:"food_id"`
 	FoodName string    `json:"food_name"`
+	ImageURL *string   `json:"image_url,omitempty"`
 	ServingG float64   `json:"serving_g"`
 }
 
@@ -99,7 +100,7 @@ func (s *Store) GetMealLog(ctx context.Context, userID, logID uuid.UUID) (MealLo
 	log.LoggedOn = loggedOn.Format("2006-01-02")
 
 	rows, err := s.pool.Query(ctx, `
-		SELECT mli.id, mli.food_id, f.name, mli.serving_g::float8
+		SELECT mli.id, mli.food_id, f.name, f.image_url, mli.serving_g::float8
 		FROM meal_log_items mli
 		JOIN foods f ON f.id = mli.food_id
 		WHERE mli.meal_log_id = $1 AND mli.user_id = $2
@@ -112,7 +113,7 @@ func (s *Store) GetMealLog(ctx context.Context, userID, logID uuid.UUID) (MealLo
 
 	for rows.Next() {
 		var item MealLogItem
-		if err := rows.Scan(&item.ID, &item.FoodID, &item.FoodName, &item.ServingG); err != nil {
+		if err := rows.Scan(&item.ID, &item.FoodID, &item.FoodName, &item.ImageURL, &item.ServingG); err != nil {
 			return MealLog{}, err
 		}
 		log.Items = append(log.Items, item)
@@ -135,6 +136,7 @@ func (s *Store) ListMealLogs(ctx context.Context, userID uuid.UUID, from, to str
 	defer rows.Close()
 
 	logs := []MealLog{}
+	logIndexByID := map[uuid.UUID]int{}
 	for rows.Next() {
 		var log MealLog
 		var loggedOn time.Time
@@ -142,9 +144,45 @@ func (s *Store) ListMealLogs(ctx context.Context, userID uuid.UUID, from, to str
 			return nil, err
 		}
 		log.LoggedOn = loggedOn.Format("2006-01-02")
+		log.Items = []MealLogItem{}
+		logIndexByID[log.ID] = len(logs)
 		logs = append(logs, log)
 	}
-	return logs, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(logs) == 0 {
+		return logs, nil
+	}
+
+	logIDs := make([]uuid.UUID, 0, len(logs))
+	for _, log := range logs {
+		logIDs = append(logIDs, log.ID)
+	}
+
+	itemRows, err := s.pool.Query(ctx, `
+		SELECT mli.meal_log_id, mli.id, mli.food_id, f.name, f.image_url, mli.serving_g::float8
+		FROM meal_log_items mli
+		JOIN foods f ON f.id = mli.food_id
+		WHERE mli.user_id = $1 AND mli.meal_log_id = ANY($2)
+		ORDER BY mli.created_at ASC
+	`, userID, logIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer itemRows.Close()
+
+	for itemRows.Next() {
+		var logID uuid.UUID
+		var item MealLogItem
+		if err := itemRows.Scan(&logID, &item.ID, &item.FoodID, &item.FoodName, &item.ImageURL, &item.ServingG); err != nil {
+			return nil, err
+		}
+		if index, ok := logIndexByID[logID]; ok {
+			logs[index].Items = append(logs[index].Items, item)
+		}
+	}
+	return logs, itemRows.Err()
 }
 
 func (s *Store) DeleteMealLog(ctx context.Context, userID, logID uuid.UUID) error {

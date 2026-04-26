@@ -101,6 +101,64 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<void> updateProfile({
+    String? displayName,
+    String? sex,
+    String? dateOfBirth,
+    double? heightCm,
+    double? weightKg,
+    String? activityLevel,
+    String? pregnancyStatus,
+  }) async {
+    await _runAuthAction(() async {
+      final response = await _api.patch(
+        ApiEndpoints.meProfile,
+        data: _withoutNulls({
+          'display_name': displayName,
+          'sex': sex,
+          'date_of_birth': dateOfBirth,
+          'height_cm': heightCm,
+          'weight_kg': weightKg,
+          'activity_level': activityLevel,
+          'pregnancy_status': pregnancyStatus,
+        }),
+      );
+      _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
+    });
+  }
+
+  Future<void> updatePreferences({
+    String? units,
+    String? locale,
+    String? timezone,
+    String? dietaryPattern,
+    List<String>? allergens,
+    List<String>? goals,
+    Map<String, dynamic>? preferences,
+  }) async {
+    await _runAuthAction(() async {
+      final response = await _api.patch(
+        ApiEndpoints.mePreferences,
+        data: _withoutNulls({
+          'units': units,
+          'locale': locale,
+          'timezone': timezone,
+          'dietary_pattern': dietaryPattern,
+          'allergens': allergens,
+          'goals': goals,
+          'preferences': preferences,
+        }),
+      );
+      _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
+    });
+  }
+
+  Future<void> updateAppearance(String appearance) async {
+    final merged = Map<String, dynamic>.from(_user?.preferences ?? const {});
+    merged['appearance'] = appearance;
+    await updatePreferences(preferences: merged);
+  }
+
   Future<void> loadMe() async {
     final response = await _api.get(ApiEndpoints.me);
     _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
@@ -142,5 +200,11 @@ class AuthProvider extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  Map<String, dynamic> _withoutNulls(Map<String, dynamic> values) {
+    return Map<String, dynamic>.fromEntries(
+      values.entries.where((entry) => entry.value != null),
+    );
   }
 }
