@@ -48,7 +48,7 @@ services:
 
   marketing:
     build:
-      context: ../../web/marketing
+      context: ../web-apps/marketing
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -59,13 +59,22 @@ services:
 
   admin:
     build:
-      context: ../../web/admin
+      context: ../web-apps/admin
       dockerfile: Dockerfile
     ports:
       - "3002:3000"
     environment:
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://api:8080/v1
+    depends_on:
+      - api
+
+  flutter-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+    ports:
+      - "3004:80"
     depends_on:
       - api
 
