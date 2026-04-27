@@ -275,11 +275,9 @@ export function VitaminGallery() {
 
           {/* CENTER — recipe-book card deck */}
           <div className="lg:col-span-6 relative">
-            <PhotoDeck
-              active={active}
+            <PhotoStage
               activeCaption={activeCaption}
               activePhoto={activePhoto}
-              captions={captions}
               reduce={reduce ?? false}
             />
           </div>
@@ -441,33 +439,29 @@ export function VitaminGallery() {
   );
 }
 
-/* ───────── Card-deck flip stage ─────────
-   Stack of recipe-book pages: 2 photos peek behind the active one.
-   Active card page-turns off (rotateY around its left edge) on change.
-   Whole deck tilts subtly toward the cursor for tactile parallax. */
-function PhotoDeck({
-  active,
+/* ───────── Editorial gallery-print stage ─────────
+   Single hero photo treated like a framed print: a coloured matte mounts
+   behind it, the photo breathes (Ken Burns), and changes wipe in via a
+   horizontal clip-path mask — no peek cards, no blur, no flip. */
+function PhotoStage({
   activeCaption,
   activePhoto,
-  captions,
   reduce,
 }: {
-  active: number;
   activeCaption: Caption;
   activePhoto: (typeof proteinNatureGallery)[number];
-  captions: Caption[];
   reduce: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const tiltX = useSpring(useTransform(my, [-0.5, 0.5], [6, -6]), {
+  const tiltX = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), {
     stiffness: 140,
     damping: 18,
     mass: 0.4,
   });
-  const tiltY = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), {
+  const tiltY = useSpring(useTransform(mx, [-0.5, 0.5], [-6, 6]), {
     stiffness: 140,
     damping: 18,
     mass: 0.4,
@@ -485,8 +479,6 @@ function PhotoDeck({
     my.set(0);
   };
 
-  const peekOffsets = [2, 1] as const;
-
   return (
     <div
       ref={wrapRef}
@@ -503,98 +495,97 @@ function PhotoDeck({
           transformStyle: "preserve-3d",
         }}
       >
-        {peekOffsets.map((offset) => {
-          const idx = (active + offset) % captions.length;
-          const ph = proteinNatureGallery[idx] ?? proteinNatureGallery[0];
-          return (
-            <motion.div
-              key={`peek-slot-${offset}`}
-              className="absolute inset-0 overflow-hidden rounded-2xl"
-              animate={{
-                x: offset * 14,
-                y: offset * 10,
-                rotate: offset * 2.2,
-                scale: 1 - offset * 0.04,
-                opacity: 1 - offset * 0.32,
-              }}
-              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                boxShadow:
-                  "0 30px 60px -30px rgba(19,26,22,0.35), inset 0 0 0 1px rgba(255,255,255,0.3)",
-                zIndex: -offset,
-              }}
-            >
-              <Image
-                src={ph.url}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 90vw, 600px"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-[var(--color-bg)]/25" />
-            </motion.div>
-          );
-        })}
+        {/* Coloured matte mounted behind the print, offset like a gallery frame */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 rounded-[24px]"
+          animate={{ backgroundColor: activeCaption.bgHue }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            transform: "translate(20px, 20px) rotate(1.4deg)",
+            opacity: 0.75,
+            boxShadow: "0 24px 48px -28px rgba(19,26,22,0.35)",
+          }}
+        />
 
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={activeCaption.kicker}
-            className="absolute inset-0 overflow-hidden rounded-2xl"
-            style={{
-              transformOrigin: "left center",
-              transformStyle: "preserve-3d",
-              boxShadow:
-                "0 50px 100px -50px rgba(19,26,22,0.45), 0 8px 24px -12px rgba(19,26,22,0.18), inset 0 0 0 1px rgba(255,255,255,0.4)",
-              zIndex: 1,
-            }}
-            initial={
-              reduce
-                ? { opacity: 1, rotateY: 0, x: 0 }
-                : { opacity: 0, rotateY: 55, x: 24 }
-            }
-            animate={{ opacity: 1, rotateY: 0, x: 0 }}
-            exit={
-              reduce
-                ? { opacity: 0 }
-                : { opacity: 0, rotateY: -155, x: -8 }
-            }
-            transition={{ duration: 0.55, ease: [0.65, 0, 0.35, 1] }}
-          >
-            <Image
-              src={activePhoto.url}
-              alt={activePhoto.alt}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 600px"
-              className="object-cover"
-              priority
-            />
-            <div
-              aria-hidden
-              className="absolute inset-x-0 bottom-0 h-1/3"
-              style={{
-                background:
-                  "linear-gradient(to top, rgba(19,26,22,0.55) 0%, rgba(19,26,22,0.0) 100%)",
-              }}
-            />
-            <div className="absolute left-4 bottom-4 right-4 flex items-end justify-between gap-3 text-white">
-              <span className="eyebrow text-[10px] tracking-[0.18em] text-white/85">
-                Food · {activeCaption.kicker}
-              </span>
-              <span
-                className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur"
-                style={{
-                  background: "rgba(255,255,255,0.18)",
-                  color: "white",
-                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-                }}
+        {/* Photo card */}
+        <div
+          className="absolute inset-0 overflow-hidden rounded-2xl bg-[var(--color-surface)]"
+          style={{
+            boxShadow:
+              "0 50px 100px -50px rgba(19,26,22,0.45), 0 8px 24px -12px rgba(19,26,22,0.18), inset 0 0 0 1px rgba(255,255,255,0.4)",
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={activeCaption.kicker}
+              className="absolute inset-0"
+              initial={
+                reduce
+                  ? { clipPath: "inset(0% 0% 0% 0%)" }
+                  : { clipPath: "inset(0% 100% 0% 0%)" }
+              }
+              animate={{ clipPath: "inset(0% 0% 0% 0%)" }}
+              exit={
+                reduce
+                  ? { opacity: 0 }
+                  : { clipPath: "inset(0% 0% 0% 100%)" }
+              }
+              transition={{ duration: 0.85, ease: [0.65, 0, 0.35, 1] }}
+            >
+              {/* Ken Burns: slow drift + zoom while idle */}
+              <motion.div
+                className="absolute inset-0"
+                animate={
+                  reduce
+                    ? {}
+                    : {
+                        scale: [1.04, 1.1, 1.04],
+                        x: [0, -10, 0],
+                        y: [0, 6, 0],
+                      }
+                }
+                transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
               >
-                {activeCaption.serving}
-              </span>
-            </div>
-          </motion.div>
-        </AnimatePresence>
+                <Image
+                  src={activePhoto.url}
+                  alt={activePhoto.alt}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 600px"
+                  className="object-cover"
+                  priority
+                />
+              </motion.div>
+
+              <div
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 h-1/3"
+                style={{
+                  background:
+                    "linear-gradient(to top, rgba(19,26,22,0.55) 0%, rgba(19,26,22,0.0) 100%)",
+                }}
+              />
+              <div className="absolute left-4 bottom-4 right-4 flex items-end justify-between gap-3 text-white">
+                <span className="eyebrow text-[10px] tracking-[0.18em] text-white/85">
+                  Food · {activeCaption.kicker}
+                </span>
+                <span
+                  className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur"
+                  style={{
+                    background: "rgba(255,255,255,0.18)",
+                    color: "white",
+                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                  }}
+                >
+                  {activeCaption.serving}
+                </span>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </motion.div>
 
+      {/* Floating hue chip — outside the tilt so it stays steady */}
       <motion.div
         className="absolute -top-3 -left-3 z-20 hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
         animate={{ color: activeCaption.hue }}
