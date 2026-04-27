@@ -9,8 +9,9 @@ import { Plus, Download, Upload } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function FoodsPage() {
-  const [foods, overview] = await Promise.all([api.listFoods(), api.overview()]);
+export default async function FoodsPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; verified?: string }> }) {
+  const filters = await searchParams;
+  const [foods, overview] = await Promise.all([api.listFoods(filters), api.overview()]);
   const totalFoods = overview.kpis.foodsInCatalog.value;
   const pendingFoods = overview.kpis.pendingVerification.value;
   const verifiedFoods = Math.max(totalFoods - pendingFoods, 0);
@@ -22,8 +23,7 @@ export default async function FoodsPage() {
         sub={`${totalFoods} foods - ${pendingFoods} pending verification`}
         actions={
           <>
-            <Button variant="ghost" size="sm"><Download size={12} /> Export CSV</Button>
-            <Button variant="ghost" size="sm"><Upload size={12} /> Import</Button>
+            <Button variant="ghost" size="sm" href="/api/admin/export/foods"><Download size={12} /> Export CSV</Button>
             <Button variant="primary" size="sm" href="/foods/new"><Plus size={14} /> New food</Button>
           </>
         }
@@ -36,20 +36,23 @@ export default async function FoodsPage() {
         <Chip>User-submitted <span className="text-[var(--color-text-muted)] ml-1">{foods.filter((f) => f.source === "user_submitted").length}</span></Chip>
       </div>
 
-      <div className="rounded-t-[18px] border border-b-0 border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex gap-2 items-center">
+      <form className="rounded-t-[18px] border border-b-0 border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex gap-2 items-center" action="/foods">
         <input
+          name="q"
+          defaultValue={filters.q ?? ""}
           placeholder="Filter by name or barcode..."
           className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px] flex-1 max-w-xs focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent-soft)]"
         />
-        <select className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
-          <option>All categories</option>
-          <option>Vegetables</option><option>Fruits</option><option>Seafood</option>
-          <option>Dairy</option><option>Nuts</option><option>Legumes</option><option>Grains</option>
+        <select name="category" defaultValue={filters.category ?? ""} className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
+          <option value="">All categories</option>
+          <option value="vegetables">Vegetables</option><option value="fruits">Fruits</option><option value="seafood">Seafood</option>
+          <option value="dairy">Dairy</option><option value="nuts">Nuts</option><option value="legumes">Legumes</option><option value="grains">Grains</option>
         </select>
-        <select className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
-          <option>All sources</option><option>USDA seed</option><option>Manual</option><option>User submitted</option>
+        <select name="verified" defaultValue={filters.verified ?? ""} className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
+          <option value="">All status</option><option value="true">Verified</option><option value="false">Pending</option>
         </select>
-      </div>
+        <Button variant="ghost" size="sm" type="submit"><Upload size={12} /> Apply</Button>
+      </form>
 
       <Table className="rounded-t-none border-t-0">
         <THead>

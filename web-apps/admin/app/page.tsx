@@ -10,8 +10,9 @@ import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage() {
-  const [overview, logs] = await Promise.all([api.overview(), api.listMealLogs()]);
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const { range = "week" } = await searchParams;
+  const [overview, logs] = await Promise.all([api.overview(range), api.listMealLogs()]);
   const recentLogs = logs.slice(0, 6);
 
   return (
@@ -21,8 +22,10 @@ export default async function OverviewPage() {
         sub="Live activity from the Go backend."
         actions={
           <>
-            <Button variant="ghost" size="sm">Last 7 days</Button>
-            <Button variant="ghost" size="sm"><Download size={12} /> Export</Button>
+            <Button variant={range === "week" ? "primary" : "ghost"} size="sm" href="/?range=week">Week</Button>
+            <Button variant={range === "month" ? "primary" : "ghost"} size="sm" href="/?range=month">Month</Button>
+            <Button variant={range === "year" ? "primary" : "ghost"} size="sm" href="/?range=year">Year</Button>
+            <Button variant="ghost" size="sm" href="/api/admin/export/meal-logs"><Download size={12} /> Export</Button>
           </>
         }
       />

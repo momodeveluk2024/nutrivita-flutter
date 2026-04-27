@@ -9,9 +9,9 @@ import { nutrients } from "@/lib/nutrients";
 import { nutrientHues } from "@/lib/tokens";
 import { Eyebrow } from "../primitives/Eyebrow";
 
-// 12 nutrients × ~80vh each ≈ a leisurely scroll-track that lets every
-// nutrient have its theatrical moment.
-const TRACK_VH_PER_NUTRIENT = 80;
+// Tight scroll runway: each nutrient gets just enough scroll for the
+// stage swap to feel deliberate, without a long blank stretch in between.
+const TRACK_VH_PER_NUTRIENT = 30;
 
 const pct = (value: number) => `${Number(value.toFixed(4))}%`;
 

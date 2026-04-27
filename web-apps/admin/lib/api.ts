@@ -80,6 +80,8 @@ function normalizeFood(raw: Record<string, unknown>): Food {
     brand: (raw.brand as string | undefined) ?? undefined,
     category: String(raw.category ?? "general"),
     servingSizeG: Number(raw.servingSizeG ?? raw.serving_size_g ?? 100),
+    imageUrl: (raw.imageUrl as string | undefined) ?? (raw.image_url as string | undefined) ?? undefined,
+    barcode: (raw.barcode as string | undefined) ?? undefined,
     source: normalizeSource(raw.source),
     verified: Boolean(raw.verified),
     updatedAt: String(raw.updatedAt ?? raw.updated_at ?? raw.created_at ?? new Date().toISOString()),
@@ -132,18 +134,29 @@ const pickOverview = (raw: unknown): Overview | undefined => {
 };
 
 export const api = {
-  listFoods: () => tryGet<Food[]>("/admin/foods?limit=100", pickFoods, mock.foods),
+  listFoods: (params: { q?: string; category?: string; verified?: string } = {}) => {
+    const query = new URLSearchParams({ limit: "100" });
+    if (params.q) query.set("q", params.q);
+    if (params.category) query.set("category", params.category);
+    if (params.verified) query.set("verified", params.verified);
+    return tryGet<Food[]>(`/admin/foods?${query}`, pickFoods, mock.foods);
+  },
   getFood: (id: string) => tryGet<Food>(`/admin/foods?limit=100`, (raw) => pickFoods(raw)?.find((f) => f.id === id), mock.foods.find((f) => f.id === id) ?? mock.foods[0])
     .then(async (summary) => {
       const detail = await tryGet<Food>(`/foods/${id}`, pickFood, summary);
       return { ...summary, ...detail };
     }),
   listNutrients: () => tryGet<Nutrient[]>("/admin/nutrients", pickEnvelopeArray<Nutrient>("nutrients"), mock.nutrients),
-  listMealLogs: () => tryGet<MealLog[]>("/admin/logs?limit=50", pickEnvelopeArray<MealLog>("logs"), mock.mealLogs),
-  listUsers: () => tryGet<User[]>("/admin/users?limit=50", pickEnvelopeArray<User>("users"), mock.users),
+  listMealLogs: (params: { from?: string; to?: string } = {}) => {
+    const query = new URLSearchParams({ limit: "100" });
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    return tryGet<MealLog[]>(`/admin/logs?${query}`, pickEnvelopeArray<MealLog>("logs"), mock.mealLogs);
+  },
+  listUsers: (status = "") => tryGet<User[]>(`/admin/users?limit=100${status ? `&status=${encodeURIComponent(status)}` : ""}`, pickEnvelopeArray<User>("users"), mock.users),
   getUser: (id: string) => tryGet<User>(`/admin/users/${id}`, (raw) => (raw && typeof raw === "object" && "id" in raw ? (raw as User) : undefined), mock.users.find((u) => u.id === id) ?? mock.users[0]),
-  listReminderTemplates: () => tryGet<ReminderTemplate[]>("/admin/reminders?limit=50", (raw) => {
-    const reminders = pickEnvelopeArray<Record<string, unknown>>("reminders")(raw);
+  listReminderTemplates: () => tryGet<ReminderTemplate[]>("/admin/reminder-templates", (raw) => {
+    const reminders = pickEnvelopeArray<Record<string, unknown>>("templates")(raw) ?? pickEnvelopeArray<Record<string, unknown>>("reminders")(raw);
     return reminders?.map((r) => ({
       id: String(r.id ?? ""),
       title: String(r.title ?? ""),
@@ -152,10 +165,56 @@ export const api = {
       audience: String(r.audience ?? r.userEmail ?? "User"),
       sent7d: Number(r.sent7d ?? 0),
       active: Boolean(r.active),
+      updatedAt: String(r.updatedAt ?? ""),
     }));
   }, mock.reminderTemplates),
-  overview: () => tryGet<Overview>("/admin/overview", pickOverview, mock.overview),
+  overview: (range = "week") => tryGet<Overview>(`/admin/overview?range=${encodeURIComponent(range)}`, pickOverview, mock.overview),
 };
+
+export async function mutateJson<T = unknown>(path: string, body: unknown, method = "POST"): Promise<T> {
+  return fetchJson(path, { method, body: JSON.stringify(body) }) as Promise<T>;
+}
+
+export async function mutateFormData<T = unknown>(path: string, formData: FormData): Promise<T> {
+  return fetchJson(path, { method: "POST", body: formData }) as Promise<T>;
+}
+
+export async function deleteResource(path: string): Promise<void> {
+  await fetchJson(path, { method: "DELETE" });
+}
+
+export function toCsv(rows: Array<Record<string, unknown>>, headers: string[]): string {
+  const escape = (value: unknown) => {
+    const raw = value == null ? "" : String(value);
+    return /[",\n]/.test(raw) ? `"${raw.replaceAll('"', '""')}"` : raw;
+  };
+  return [headers.join(","), ...rows.map((row) => headers.map((h) => escape(row[h])).join(","))].join("\n");
+}
+
+export async function exportFoodsCsv() {
+  const foods = await api.listFoods();
+  return toCsv(foods as unknown as Array<Record<string, unknown>>, ["id", "name", "brand", "category", "servingSizeG", "source", "verified", "imageUrl"]);
+}
+
+export async function exportUsersCsv() {
+  const users = await api.listUsers();
+  return toCsv(users as unknown as Array<Record<string, unknown>>, ["id", "email", "displayName", "role", "status", "logs30d", "lastActive", "joined"]);
+}
+
+export async function exportMealLogsCsv() {
+  const logs = await api.listMealLogs();
+  return toCsv(logs as unknown as Array<Record<string, unknown>>, ["id", "userId", "userEmail", "loggedAt", "meal", "items"]);
+}
+
+export async function exportNutrientsCsv() {
+  const nutrients = await api.listNutrients();
+  return toCsv(nutrients as unknown as Array<Record<string, unknown>>, ["id", "code", "name", "unit", "group", "driAdult", "foodCount"]);
+}
+
+export async function exportReminderTemplatesCsv() {
+  const templates = await api.listReminderTemplates();
+  return toCsv(templates as unknown as Array<Record<string, unknown>>, ["id", "title", "body", "trigger", "audience", "sent7d", "active"]);
+}
 
 export const rawApi = {
   login: (email: string, password: string) => fetch(`${BASE}/admin/auth/login`, {

@@ -46,6 +46,7 @@ type CreateFoodParams struct {
 	Category     string
 	ServingSizeG float64
 	Barcode      *string
+	ImageURL     *string
 	Nutrients    []CreateFoodNutrient
 }
 
@@ -245,9 +246,9 @@ func (s *Store) CreateFood(ctx context.Context, params CreateFoodParams) (FoodDe
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO foods (id, owner_user_id, name, brand, category, serving_size_g, source, verified, barcode)
-		VALUES ($1, $2, $3, $4, $5, $6, 'user', false, $7)
-	`, params.ID, params.OwnerUserID, params.Name, params.Brand, params.Category, params.ServingSizeG, params.Barcode)
+		INSERT INTO foods (id, owner_user_id, name, brand, category, serving_size_g, source, verified, barcode, image_url)
+		VALUES ($1, $2, $3, $4, $5, $6, 'user', false, $7, $8)
+	`, params.ID, params.OwnerUserID, params.Name, params.Brand, params.Category, params.ServingSizeG, params.Barcode, params.ImageURL)
 	if err != nil {
 		return FoodDetail{}, err
 	}

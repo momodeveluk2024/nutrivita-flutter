@@ -11,8 +11,12 @@ import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function MealLogsPage() {
-  const logs = await api.listMealLogs();
+export default async function MealLogsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const { range = "week" } = await searchParams;
+  const now = new Date();
+  const fromDate = new Date(now);
+  fromDate.setDate(now.getDate() - (range === "year" ? 365 : range === "month" ? 30 : 7));
+  const logs = await api.listMealLogs({ from: fromDate.toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) });
   const today = new Date().toISOString().slice(0, 10);
   const logsToday = logs.filter((log) => log.loggedAt.slice(0, 10) === today).length;
   const representedUsers = new Set(logs.map((log) => log.userId)).size;
@@ -24,7 +28,7 @@ export default async function MealLogsPage() {
       <PageHeader
         title="Meal logs"
         sub="Read-only feed across all users - for moderation and abuse review"
-        actions={<Button variant="ghost" size="sm"><Download size={12} /> Export</Button>}
+        actions={<Button variant="ghost" size="sm" href="/api/admin/export/meal-logs"><Download size={12} /> Export</Button>}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -42,9 +46,9 @@ export default async function MealLogsPage() {
         <select className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
           <option>All meals</option><option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option>
         </select>
-        <select className="h-9 px-3 bg-white border border-[var(--color-border)] rounded-[10px] text-[13px]">
-          <option>Last 24h</option><option>Last 7d</option><option>Last 30d</option><option>All time</option>
-        </select>
+        <Button variant={range === "week" ? "primary" : "ghost"} size="sm" href="/meal-logs?range=week">Week</Button>
+        <Button variant={range === "month" ? "primary" : "ghost"} size="sm" href="/meal-logs?range=month">Month</Button>
+        <Button variant={range === "year" ? "primary" : "ghost"} size="sm" href="/meal-logs?range=year">Year</Button>
       </div>
 
       <Table className="rounded-t-none border-t-0">

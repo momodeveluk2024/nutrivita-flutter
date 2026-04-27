@@ -5,6 +5,7 @@ import { Chip } from "@/components/ui/Chip";
 import { NutrientPill } from "@/components/ui/NutrientPill";
 import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/Table";
 import { Plus, Download } from "lucide-react";
+import { createNutrient, updateNutrient } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,7 @@ export default async function NutrientsPage() {
         sub={`${nutrients.length} nutrients tracked - adult DRI values from the backend`}
         actions={
           <>
-            <Button variant="ghost" size="sm"><Download size={12} /> Export</Button>
-            <Button variant="primary" size="sm"><Plus size={14} /> New nutrient</Button>
+            <Button variant="ghost" size="sm" href="/api/admin/export/nutrients"><Download size={12} /> Export</Button>
           </>
         }
       />
@@ -33,6 +33,17 @@ export default async function NutrientsPage() {
         <Chip>Minerals <span className="text-[var(--color-text-muted)] ml-1">{mins.length}</span></Chip>
         <Chip>Macros <span className="text-[var(--color-text-muted)] ml-1">{macs.length}</span></Chip>
       </div>
+
+      <form action={createNutrient} className="mb-5 grid grid-cols-1 md:grid-cols-[90px_1fr_90px_120px_120px_auto] gap-2 rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+        <input name="code" className="input" placeholder="Code" required />
+        <input name="name" className="input" placeholder="Name" required />
+        <input name="unit" className="input" placeholder="Unit" required />
+        <select name="group" className="input" defaultValue="vitamin">
+          <option value="vitamin">Vitamin</option><option value="mineral">Mineral</option><option value="macro">Macro</option>
+        </select>
+        <input name="driAdult" type="number" step="0.1" className="input" placeholder="Adult DRI" />
+        <Button variant="primary" size="sm" type="submit"><Plus size={14} /> New nutrient</Button>
+      </form>
 
       <Table>
         <THead>
@@ -55,11 +66,21 @@ export default async function NutrientsPage() {
               <TD className="tabular"><strong>{n.driAdult}</strong> <span className="text-[var(--color-text-muted)]">{n.unit}</span></TD>
               <TD className="tabular">{n.foodCount}</TD>
               <TD className="text-[var(--color-text-muted)] text-[12px]">{n.updatedAt}</TD>
-              <TD><a href={`/nutrients?code=${encodeURIComponent(n.code)}`} className="text-[var(--color-text-muted)] text-[12px] hover:text-[var(--color-text)]">Focus</a></TD>
+              <TD>
+                <form action={updateNutrient.bind(null, n.code)} className="flex gap-1 items-center">
+                  <input type="hidden" name="code" value={n.code} />
+                  <input type="hidden" name="name" value={n.name} />
+                  <input type="hidden" name="unit" value={n.unit} />
+                  <input type="hidden" name="group" value={n.group} />
+                  <input name="driAdult" type="number" step="0.1" defaultValue={n.driAdult} className="h-8 w-24 px-2 bg-white border border-[var(--color-border)] rounded-lg text-[12px]" />
+                  <Button variant="ghost" size="xs" type="submit">Save</Button>
+                </form>
+              </TD>
             </TRow>
           ))}
         </TBody>
       </Table>
+      <style>{`.input { height: 36px; padding: 0 10px; background: white; border: 1px solid var(--color-border); border-radius: 10px; font-size: 12px; }`}</style>
     </div>
   );
 }

@@ -51,6 +51,8 @@ type AdminUserSummary struct {
 	LastActive  *time.Time `json:"lastActive"`
 	Joined      string     `json:"joined"`
 	Platform    string     `json:"platform"`
+	SuspendedAt *time.Time `json:"suspendedAt,omitempty"`
+	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
 }
 
 type AdminUserDetail struct {
@@ -105,6 +107,8 @@ type AdminFood struct {
 	ServingSizeG float64        `json:"servingSizeG"`
 	Source       string         `json:"source"`
 	Verified     bool           `json:"verified"`
+	ImageURL     *string        `json:"imageUrl,omitempty"`
+	Barcode      *string        `json:"barcode,omitempty"`
 	UpdatedAt    time.Time      `json:"updatedAt"`
 	Nutrients    []FoodNutrient `json:"nutrients"`
 }
@@ -123,6 +127,17 @@ type AdminReminder struct {
 	Timezone  string    `json:"timezone"`
 }
 
+type AdminReminderTemplate struct {
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Trigger   string    `json:"trigger"`
+	Audience  string    `json:"audience"`
+	Sent7d    int       `json:"sent7d"`
+	Active    bool      `json:"active"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type AdminAuditEntry struct {
 	ID        string    `json:"id"`
 	Actor     string    `json:"actor"`
@@ -137,14 +152,57 @@ type UpdateAdminFoodParams struct {
 	Brand            *string
 	Category         *string
 	ServingSizeG     *float64
+	ImageURL         *string
+	Barcode          *string
+	Source           *string
+	Verified         *bool
 	Nutrients        []CreateFoodNutrient
 	ReplaceNutrients bool
 }
 
-func (s *Store) GetAdminOverview(ctx context.Context, now time.Time) (AdminOverview, error) {
+type CreateAdminFoodParams struct {
+	Name         string
+	Brand        *string
+	Category     string
+	ServingSizeG float64
+	ImageURL     *string
+	Barcode      *string
+	Source       string
+	Verified     bool
+	Nutrients    []CreateFoodNutrient
+}
+
+type UpsertAdminNutrientParams struct {
+	Code     string
+	Name     string
+	Unit     string
+	Group    string
+	DRIAdult float64
+}
+
+type UpdateAdminUserProfileParams struct {
+	UserID      uuid.UUID
+	DisplayName *string
+	Sex         *string
+	Activity    *string
+	Timezone    *string
+	Units       *string
+}
+
+type UpsertAdminReminderTemplateParams struct {
+	ID       uuid.UUID
+	Title    string
+	Body     string
+	Trigger  string
+	Audience string
+	Active   bool
+}
+
+func (s *Store) GetAdminOverview(ctx context.Context, now time.Time, rangeName string) (AdminOverview, error) {
 	var overview AdminOverview
 	today := now.Format("2006-01-02")
-	weekAgo := now.AddDate(0, 0, -7)
+	daysBack := adminRangeDays(rangeName)
+	rangeStart := now.AddDate(0, 0, -daysBack)
 
 	if err := s.pool.QueryRow(ctx, `
 		SELECT
@@ -154,7 +212,7 @@ func (s *Store) GetAdminOverview(ctx context.Context, now time.Time) (AdminOverv
 			(SELECT COUNT(*)::int FROM foods WHERE deleted_at IS NULL AND created_at >= $1),
 			(SELECT COUNT(*)::int FROM foods WHERE deleted_at IS NULL AND verified = false),
 			(SELECT COUNT(*)::int FROM foods WHERE deleted_at IS NULL AND verified = false AND created_at < $1)
-	`, weekAgo, today).Scan(
+	`, rangeStart, today).Scan(
 		&overview.KPIs.ActiveUsers7d.Value,
 		&overview.KPIs.MealsLoggedToday.Value,
 		&overview.KPIs.FoodsInCatalog.Value,
@@ -168,14 +226,14 @@ func (s *Store) GetAdminOverview(ctx context.Context, now time.Time) (AdminOverv
 	rows, err := s.pool.Query(ctx, `
 		WITH days AS (
 			SELECT day::date AS day
-			FROM generate_series(($1::date - interval '13 days')::date, $1::date, interval '1 day') day
+			FROM generate_series(($1::date - make_interval(days => $2::int))::date, $1::date, interval '1 day') day
 		)
 		SELECT to_char(days.day, 'Mon DD'), COUNT(ml.id)::int
 		FROM days
 		LEFT JOIN meal_logs ml ON ml.logged_on = days.day
 		GROUP BY days.day
 		ORDER BY days.day ASC
-	`, today)
+	`, today, daysBack)
 	if err != nil {
 		return AdminOverview{}, err
 	}
@@ -231,17 +289,24 @@ func (s *Store) ListAdminUsers(ctx context.Context, status string, limit int) ([
 			p.activity_level,
 			CASE
 				WHEN u.deleted_at IS NOT NULL THEN 'pending_deletion'
+				WHEN u.suspended_at IS NOT NULL THEN 'suspended'
 				WHEN u.email_verified_at IS NULL THEN 'unverified'
 				ELSE 'verified'
 			END AS status,
 			(SELECT COUNT(*)::int FROM meal_logs ml WHERE ml.user_id = u.id AND ml.logged_on >= current_date - interval '30 days') AS logs30d,
 			(SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS last_active,
 			to_char(u.created_at, 'YYYY-MM-DD') AS joined,
-			COALESCE((SELECT CASE WHEN s.user_agent ILIKE '%android%' THEN 'Android' WHEN s.user_agent ILIKE '%iphone%' OR s.user_agent ILIKE '%ios%' THEN 'iOS' ELSE 'Web' END FROM sessions s WHERE s.user_id = u.id ORDER BY s.created_at DESC LIMIT 1), 'Web') AS platform
+			COALESCE((SELECT CASE WHEN s.user_agent ILIKE '%android%' THEN 'Android' WHEN s.user_agent ILIKE '%iphone%' OR s.user_agent ILIKE '%ios%' THEN 'iOS' ELSE 'Web' END FROM sessions s WHERE s.user_id = u.id ORDER BY s.created_at DESC LIMIT 1), 'Web') AS platform,
+			u.suspended_at,
+			u.deleted_at
 		FROM users u
 		JOIN user_profiles p ON p.user_id = u.id
-		WHERE u.deleted_at IS NULL
-		  AND ($1 = '' OR CASE WHEN u.email_verified_at IS NULL THEN 'unverified' ELSE 'verified' END = $1)
+		WHERE ($1 = '' OR CASE
+				WHEN u.deleted_at IS NOT NULL THEN 'pending_deletion'
+				WHEN u.suspended_at IS NOT NULL THEN 'suspended'
+				WHEN u.email_verified_at IS NULL THEN 'unverified'
+				ELSE 'verified'
+			END = $1)
 		ORDER BY u.created_at DESC
 		LIMIT $2
 	`, strings.TrimSpace(status), limit)
@@ -253,7 +318,7 @@ func (s *Store) ListAdminUsers(ctx context.Context, status string, limit int) ([
 	users := []AdminUserSummary{}
 	for rows.Next() {
 		var user AdminUserSummary
-		if err := rows.Scan(&user.ID, &user.Email, &user.Role, &user.DisplayName, &user.Sex, &user.Age, &user.Activity, &user.Status, &user.Logs30d, &user.LastActive, &user.Joined, &user.Platform); err != nil {
+		if err := rows.Scan(&user.ID, &user.Email, &user.Role, &user.DisplayName, &user.Sex, &user.Age, &user.Activity, &user.Status, &user.Logs30d, &user.LastActive, &user.Joined, &user.Platform, &user.SuspendedAt, &user.DeletedAt); err != nil {
 			return nil, err
 		}
 		user.Initials = initials(user.DisplayName, user.Email)
@@ -446,7 +511,7 @@ func (s *Store) ListAdminFoods(ctx context.Context, q, category, verified string
 		limit = 50
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, name, brand, category, serving_size_g::float8, source, verified, updated_at
+		SELECT id, name, brand, category, serving_size_g::float8, source, verified, image_url, barcode, updated_at
 		FROM foods
 		WHERE deleted_at IS NULL
 		  AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR similarity(name, $1) > 0.18)
@@ -463,7 +528,7 @@ func (s *Store) ListAdminFoods(ctx context.Context, q, category, verified string
 	foods := []AdminFood{}
 	for rows.Next() {
 		var food AdminFood
-		if err := rows.Scan(&food.ID, &food.Name, &food.Brand, &food.Category, &food.ServingSizeG, &food.Source, &food.Verified, &food.UpdatedAt); err != nil {
+		if err := rows.Scan(&food.ID, &food.Name, &food.Brand, &food.Category, &food.ServingSizeG, &food.Source, &food.Verified, &food.ImageURL, &food.Barcode, &food.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if food.Source == "user" {
@@ -497,9 +562,13 @@ func (s *Store) UpdateAdminFood(ctx context.Context, params UpdateAdminFoodParam
 		    brand = COALESCE($3, brand),
 		    category = COALESCE($4, category),
 		    serving_size_g = COALESCE($5, serving_size_g),
+		    image_url = COALESCE($6, image_url),
+		    barcode = COALESCE($7, barcode),
+		    source = COALESCE($8, source),
+		    verified = COALESCE($9, verified),
 		    updated_at = now()
 		WHERE id = $1 AND deleted_at IS NULL
-	`, params.ID, trimAdminOptional(params.Name), trimAdminOptional(params.Brand), trimAdminOptional(params.Category), params.ServingSizeG)
+	`, params.ID, trimAdminOptional(params.Name), trimAdminOptional(params.Brand), trimAdminOptional(params.Category), params.ServingSizeG, trimAdminOptional(params.ImageURL), trimAdminOptional(params.Barcode), trimAdminOptional(params.Source), params.Verified)
 	if err != nil {
 		return FoodDetail{}, err
 	}
@@ -539,6 +608,152 @@ func (s *Store) DeleteAdminFood(ctx context.Context, foodID uuid.UUID) error {
 	return err
 }
 
+func (s *Store) CreateAdminFood(ctx context.Context, params CreateAdminFoodParams) (FoodDetail, error) {
+	foodID, err := uuid.NewV7()
+	if err != nil {
+		return FoodDetail{}, err
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return FoodDetail{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO foods (id, name, brand, category, serving_size_g, source, verified, barcode, image_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, foodID, strings.TrimSpace(params.Name), trimAdminOptional(params.Brand), strings.ToLower(strings.TrimSpace(params.Category)), params.ServingSizeG, strings.TrimSpace(params.Source), params.Verified, trimAdminOptional(params.Barcode), trimAdminOptional(params.ImageURL))
+	if err != nil {
+		return FoodDetail{}, err
+	}
+	for _, nutrient := range params.Nutrients {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO food_nutrients (food_id, nutrient_id, amount_per_100g)
+			SELECT $1, id, $3
+			FROM nutrients
+			WHERE lower(code) = lower($2)
+		`, foodID, nutrient.Code, nutrient.AmountPer100G); err != nil {
+			return FoodDetail{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return FoodDetail{}, err
+	}
+	return s.GetFoodDetail(ctx, foodID)
+}
+
+func (s *Store) UpsertAdminNutrient(ctx context.Context, params UpsertAdminNutrientParams) (AdminNutrient, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return AdminNutrient{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var nutrientID uuid.UUID
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO nutrients (id, code, name, unit, nutrient_group)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4)
+		ON CONFLICT (code) DO UPDATE
+		SET name = EXCLUDED.name,
+		    unit = EXCLUDED.unit,
+		    nutrient_group = EXCLUDED.nutrient_group
+		RETURNING id
+	`, strings.TrimSpace(params.Code), strings.TrimSpace(params.Name), strings.TrimSpace(params.Unit), strings.TrimSpace(params.Group)).Scan(&nutrientID); err != nil {
+		return AdminNutrient{}, err
+	}
+	if params.DRIAdult > 0 {
+		tag, err := tx.Exec(ctx, `
+			UPDATE dri_values
+			SET amount = $2,
+			    created_at = now()
+			WHERE nutrient_id = $1 AND life_stage = 'adult' AND sex IS NULL
+		`, nutrientID, params.DRIAdult)
+		if err != nil {
+			return AdminNutrient{}, err
+		}
+		if tag.RowsAffected() == 0 {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO dri_values (id, nutrient_id, life_stage, sex, amount)
+				VALUES (gen_random_uuid(), $1, 'adult', NULL, $2)
+			`, nutrientID, params.DRIAdult); err != nil {
+				return AdminNutrient{}, err
+			}
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return AdminNutrient{}, err
+	}
+	return s.adminNutrientByCode(ctx, params.Code)
+}
+
+func (s *Store) adminNutrientByCode(ctx context.Context, code string) (AdminNutrient, error) {
+	nutrients, err := s.ListAdminNutrients(ctx)
+	if err != nil {
+		return AdminNutrient{}, err
+	}
+	for _, nutrient := range nutrients {
+		if strings.EqualFold(nutrient.Code, code) {
+			return nutrient, nil
+		}
+	}
+	return AdminNutrient{}, pgx.ErrNoRows
+}
+
+func (s *Store) VerifyAdminUser(ctx context.Context, userID uuid.UUID) (AdminUserDetail, error) {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`, userID)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+	return s.GetAdminUser(ctx, userID)
+}
+
+func (s *Store) SuspendAdminUser(ctx context.Context, userID uuid.UUID, suspended bool) (AdminUserDetail, error) {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE users
+		SET suspended_at = CASE WHEN $2 THEN COALESCE(suspended_at, now()) ELSE NULL END,
+		    updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL
+	`, userID, suspended)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+	if suspended {
+		_, _ = s.pool.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID)
+	}
+	return s.GetAdminUser(ctx, userID)
+}
+
+func (s *Store) DeleteAdminUser(ctx context.Context, userID uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET deleted_at = COALESCE(deleted_at, now()), updated_at = now() WHERE id = $1`, userID)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID)
+	return err
+}
+
+func (s *Store) UpdateAdminUserProfile(ctx context.Context, params UpdateAdminUserProfileParams) (AdminUserDetail, error) {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE user_profiles
+		SET display_name = COALESCE($2, display_name),
+		    sex = COALESCE($3, sex),
+		    activity_level = COALESCE($4, activity_level),
+		    timezone = COALESCE($5, timezone),
+		    units = COALESCE($6, units),
+		    updated_at = now()
+		WHERE user_id = $1
+	`, params.UserID, trimAdminOptional(params.DisplayName), trimAdminOptional(params.Sex), trimAdminOptional(params.Activity), trimAdminOptional(params.Timezone), trimAdminOptional(params.Units))
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+	return s.GetAdminUser(ctx, params.UserID)
+}
+
+func (s *Store) RevokeAdminUserSession(ctx context.Context, userID, sessionID uuid.UUID) error {
+	_, err := s.pool.Exec(ctx, `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND id = $2 AND revoked_at IS NULL`, userID, sessionID)
+	return err
+}
+
 func (s *Store) ListAdminReminders(ctx context.Context, limit int) ([]AdminReminder, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -568,6 +783,54 @@ func (s *Store) ListAdminReminders(ctx context.Context, limit int) ([]AdminRemin
 	return reminders, rows.Err()
 }
 
+func (s *Store) ListAdminReminderTemplates(ctx context.Context) ([]AdminReminderTemplate, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, title, body, trigger, audience, sent_7d, active, updated_at
+		FROM reminder_templates
+		ORDER BY active DESC, updated_at DESC, title ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	templates := []AdminReminderTemplate{}
+	for rows.Next() {
+		var template AdminReminderTemplate
+		if err := rows.Scan(&template.ID, &template.Title, &template.Body, &template.Trigger, &template.Audience, &template.Sent7d, &template.Active, &template.UpdatedAt); err != nil {
+			return nil, err
+		}
+		templates = append(templates, template)
+	}
+	return templates, rows.Err()
+}
+
+func (s *Store) UpsertAdminReminderTemplate(ctx context.Context, params UpsertAdminReminderTemplateParams) (AdminReminderTemplate, error) {
+	id := params.ID
+	if id == uuid.Nil {
+		var err error
+		id, err = uuid.NewV7()
+		if err != nil {
+			return AdminReminderTemplate{}, err
+		}
+	}
+	var template AdminReminderTemplate
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO reminder_templates (id, title, body, trigger, audience, active)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (id) DO UPDATE
+		SET title = EXCLUDED.title,
+		    body = EXCLUDED.body,
+		    trigger = EXCLUDED.trigger,
+		    audience = EXCLUDED.audience,
+		    active = EXCLUDED.active,
+		    updated_at = now()
+		RETURNING id, title, body, trigger, audience, sent_7d, active, updated_at
+	`, id, strings.TrimSpace(params.Title), strings.TrimSpace(params.Body), strings.TrimSpace(params.Trigger), strings.TrimSpace(params.Audience), params.Active).Scan(
+		&template.ID, &template.Title, &template.Body, &template.Trigger, &template.Audience, &template.Sent7d, &template.Active, &template.UpdatedAt,
+	)
+	return template, err
+}
+
 func (s *Store) ListAdminAuditEntries(ctx context.Context) ([]AdminAuditEntry, error) {
 	return []AdminAuditEntry{}, nil
 }
@@ -577,6 +840,17 @@ func nullableUUID(id uuid.UUID) *uuid.UUID {
 		return nil
 	}
 	return &id
+}
+
+func adminRangeDays(rangeName string) int {
+	switch strings.ToLower(strings.TrimSpace(rangeName)) {
+	case "year":
+		return 365
+	case "month":
+		return 30
+	default:
+		return 7
+	}
 }
 
 func trimAdminOptional(value *string) *string {

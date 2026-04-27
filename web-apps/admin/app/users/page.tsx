@@ -22,7 +22,7 @@ export default async function UsersPage() {
       <PageHeader
         title="Users"
         sub={`${users.length} users loaded - ${unverified} unverified - ${pendingDeletion} pending deletion`}
-        actions={<Button variant="ghost" size="sm"><Download size={12} /> Export</Button>}
+        actions={<Button variant="ghost" size="sm" href="/api/admin/export/users"><Download size={12} /> Export</Button>}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { NutrientPill } from "@/components/ui/NutrientPill";
-import { Plus, X } from "lucide-react";
-import { deleteFood, saveFood } from "./actions";
+import { Plus } from "lucide-react";
+import { deleteFood, saveFood, uploadFoodImage } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
   const food = await api.getFood(id);
   const saveAction = saveFood.bind(null, id);
   const deleteAction = deleteFood.bind(null, id);
+  const uploadAction = uploadFoodImage.bind(null, id);
 
   return (
     <div className="p-8 max-w-5xl">
@@ -45,7 +46,7 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
               <input name="brand" className="input" defaultValue={food.brand ?? ""} placeholder="e.g. Lightlife" />
             </Field>
             <Field label="Barcode (optional)">
-              <input className="input" placeholder="EAN-13 / UPC-A" />
+              <input name="barcode" className="input" defaultValue={food.barcode ?? ""} placeholder="EAN-13 / UPC-A" />
             </Field>
           </div>
         </FormSection>
@@ -64,7 +65,7 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
               </select>
             </Field>
             <Field label="Source">
-              <select className="input" defaultValue={food.source}>
+              <select name="source" className="input" defaultValue={food.source}>
                 <option value="seed">seed (USDA)</option>
                 <option value="manual">manual</option>
                 <option value="user_submitted">user_submitted</option>
@@ -84,11 +85,24 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
           </div>
         </FormSection>
 
+        <FormSection
+          title="Image"
+          desc="Food photos are stored on the food row and returned to Flutter as image_url."
+        >
+          {food.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={food.imageUrl} alt={food.name} className="w-36 h-24 object-cover rounded-xl border border-[var(--color-border)]" />
+          )}
+          <Field label="Image URL">
+            <input name="imageUrl" className="input" defaultValue={food.imageUrl ?? ""} placeholder="https://..." />
+          </Field>
+        </FormSection>
+
         {/* Nutrients */}
         <FormSection
           title="Nutrients"
           desc={<>Amounts <strong>per 100 g</strong>. Stored in <code className="text-[12px] bg-[var(--color-surface-muted)] px-1.5 py-0.5 rounded">food_nutrients</code> and used to compute daily totals.</>}
-          actions={<Button variant="ghost" size="xs"><Plus size={11} /> Add nutrient</Button>}
+          actions={<span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]"><Plus size={11} /> Add a row below and save</span>}
         >
           <div className="border border-[var(--color-border)] rounded-xl overflow-hidden">
             <table className="w-full text-[13px]">
@@ -104,19 +118,22 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
               <tbody>
                 {food.nutrients.map((n) => (
                   <tr key={n.code} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="px-3 py-3"><NutrientPill code={n.code} size="sm" /></td>
+                    <td className="px-3 py-3"><input name="nutrientCode" className="input h-8 tabular w-full" defaultValue={n.code} /></td>
                     <td className="px-3 py-3">{n.name}</td>
                     <td className="px-3 py-3">
-                      <input type="number" step="0.1" defaultValue={n.amount} className="input h-8 tabular w-full" />
+                      <input name="nutrientAmount" type="number" step="0.1" defaultValue={n.amount} className="input h-8 tabular w-full" />
                     </td>
                     <td className="px-3 py-3 text-[var(--color-text-muted)]">{n.unit}</td>
-                    <td className="px-3 py-3">
-                      <button className="grid place-items-center w-7 h-7 rounded-md hover:bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]" title="Remove">
-                        <X size={12} />
-                      </button>
-                    </td>
+                    <td className="px-3 py-3"><NutrientPill code={n.code} size="sm" /></td>
                   </tr>
                 ))}
+                <tr className="border-b border-[var(--color-border)] last:border-0">
+                  <td className="px-3 py-3"><input name="nutrientCode" className="input h-8 tabular w-full" placeholder="Code" /></td>
+                  <td className="px-3 py-3 text-[var(--color-text-muted)]">New nutrient</td>
+                  <td className="px-3 py-3"><input name="nutrientAmount" type="number" step="0.1" className="input h-8 tabular w-full" placeholder="0" /></td>
+                  <td className="px-3 py-3 text-[var(--color-text-muted)]">lookup</td>
+                  <td className="px-3 py-3"></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -127,6 +144,15 @@ export default async function FoodEditPage({ params }: { params: Promise<{ id: s
         </div>
       </Card>
       </form>
+
+      <Card className="mt-4">
+        <form action={uploadAction} className="flex items-end gap-3">
+          <Field label="Upload image file">
+            <input name="image" type="file" accept="image/*" className="input py-2" />
+          </Field>
+          <Button variant="ghost" size="sm" type="submit">Upload image</Button>
+        </form>
+      </Card>
 
       {/* Danger zone */}
       <Card className="mt-4 !border-[#F0D2D2]">

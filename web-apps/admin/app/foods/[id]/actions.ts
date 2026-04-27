@@ -2,31 +2,60 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { backendFetch } from "@/lib/api";
+import { backendFetch, mutateFormData, mutateJson, exportFoodsCsv } from "@/lib/api";
+
+function optionalString(formData: FormData, name: string) {
+  const value = String(formData.get(name) ?? "").trim();
+  return value === "" ? undefined : value;
+}
+
+function parseNutrients(formData: FormData) {
+  const codes = formData.getAll("nutrientCode").map((v) => String(v).trim()).filter(Boolean);
+  const amounts = formData.getAll("nutrientAmount").map((v) => Number(v));
+  return codes.map((code, index) => ({
+    code,
+    amount_per_100g: Number.isFinite(amounts[index]) && amounts[index] >= 0 ? amounts[index] : 0,
+  }));
+}
 
 export async function saveFood(foodId: string, formData: FormData) {
   const serving = Number(formData.get("servingSizeG"));
-  const verified = formData.get("verified") === "on";
   const body = {
-    name: String(formData.get("name") ?? ""),
-    brand: String(formData.get("brand") ?? ""),
-    category: String(formData.get("category") ?? ""),
+    name: optionalString(formData, "name"),
+    brand: optionalString(formData, "brand"),
+    category: optionalString(formData, "category"),
     servingSizeG: Number.isFinite(serving) && serving > 0 ? serving : undefined,
+    imageUrl: optionalString(formData, "imageUrl"),
+    barcode: optionalString(formData, "barcode"),
+    source: optionalString(formData, "source"),
+    verified: formData.get("verified") === "on",
+    nutrients: parseNutrients(formData),
   };
 
-  const response = await backendFetch(`/admin/foods/${foodId}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
+  await mutateJson(`/admin/foods/${foodId}`, body, "PATCH");
+  revalidatePath("/foods");
+  revalidatePath(`/foods/${foodId}`);
+}
+
+export async function createFood(formData: FormData) {
+  const serving = Number(formData.get("servingSizeG"));
+  const food = await mutateJson<{ id: string }>("/admin/foods", {
+    name: optionalString(formData, "name") ?? "",
+    brand: optionalString(formData, "brand"),
+    category: optionalString(formData, "category") ?? "general",
+    servingSizeG: Number.isFinite(serving) && serving > 0 ? serving : 100,
+    imageUrl: optionalString(formData, "imageUrl"),
+    barcode: optionalString(formData, "barcode"),
+    source: optionalString(formData, "source") ?? "manual",
+    verified: formData.get("verified") === "on",
+    nutrients: parseNutrients(formData),
   });
-  if (!response.ok) {
-    throw new Error("Could not save food");
-  }
-  if (verified) {
-    const verify = await backendFetch(`/admin/foods/${foodId}/verify`, { method: "POST", body: "{}" });
-    if (!verify.ok) {
-      throw new Error("Could not verify food");
-    }
-  }
+  revalidatePath("/foods");
+  redirect(`/foods/${food.id}`);
+}
+
+export async function uploadFoodImage(foodId: string, formData: FormData) {
+  await mutateFormData(`/admin/foods/${foodId}/image`, formData);
   revalidatePath("/foods");
   revalidatePath(`/foods/${foodId}`);
 }
@@ -39,3 +68,5 @@ export async function deleteFood(foodId: string) {
   revalidatePath("/foods");
   redirect("/foods");
 }
+
+export { exportFoodsCsv };

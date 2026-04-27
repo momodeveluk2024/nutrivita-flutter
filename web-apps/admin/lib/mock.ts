@@ -9,6 +9,8 @@ export type Food = {
   brand?: string;
   category: string;
   servingSizeG: number;
+  imageUrl?: string;
+  barcode?: string;
   source: "seed" | "manual" | "user_submitted";
   verified: boolean;
   updatedAt: string;
@@ -35,7 +37,7 @@ export type User = {
   sex: "female" | "male" | "other" | null;
   age: number | null;
   activity: string | null;
-  status: "verified" | "unverified" | "pending_deletion";
+  status: "verified" | "unverified" | "suspended" | "pending_deletion";
   logs30d: number;
   lastActive: string | null;
   joined: string;
@@ -77,6 +79,7 @@ export type ReminderTemplate = {
   audience: string;
   sent7d: number;
   active: boolean;
+  updatedAt?: string;
 };
 
 export type Overview = {

@@ -5,71 +5,115 @@ import Image from "next/image";
 import {
   AnimatePresence,
   motion,
+  useMotionValue,
   useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
 } from "motion/react";
 import { proteinNatureGallery } from "@/lib/images";
 import { Eyebrow } from "../primitives/Eyebrow";
 
-type Caption = { kicker: string; line: string; tag: string; hue: string };
+type Caption = {
+  kicker: string;
+  line: string;
+  tag: string;
+  serving: string;
+  nutrients: { label: string; value: string; pct: number }[];
+  hue: string;
+  bgHue: string;
+};
 
 const captions: Caption[] = [
   {
     kicker: "Salmon",
-    line: "Protein, vitamin D, and omega-rich food in one plain meal.",
-    tag: "Protein and D",
+    line: "Wild-caught richness — vitamin D where most diets fall short, omega-3s for the brain, and clean complete protein on one plate.",
+    tag: "Protein · Vitamin D",
+    serving: "100 g cooked fillet",
+    nutrients: [
+      { label: "Vitamin D", value: "13.1 µg", pct: 87 },
+      { label: "Omega-3",   value: "2.6 g",   pct: 70 },
+      { label: "Protein",   value: "25 g",    pct: 50 },
+      { label: "B12",       value: "3.2 µg",  pct: 95 },
+    ],
     hue: "var(--color-nut-d)",
+    bgHue: "var(--color-nut-d-bg)",
   },
   {
     kicker: "Greens",
-    line: "A bowl can carry folate, magnesium, vitamin C, and real texture.",
-    tag: "Plants and minerals",
+    line: "A bowl that quietly carries folate, magnesium, and vitamin C — without any of the smoothie-bar performance.",
+    tag: "Plants · Minerals",
+    serving: "1 mixed bowl",
+    nutrients: [
+      { label: "Folate",    value: "194 µg",  pct: 49 },
+      { label: "Magnesium", value: "157 mg",  pct: 45 },
+      { label: "Vitamin C", value: "30 mg",   pct: 33 },
+      { label: "Fiber",     value: "8 g",     pct: 32 },
+    ],
     hue: "var(--color-nut-c)",
+    bgHue: "var(--color-nut-c-bg)",
   },
   {
     kicker: "Almonds",
-    line: "Small foods still matter: vitamin E, magnesium, and steady fats.",
-    tag: "Dense foods",
+    line: "Small foods still matter — vitamin E for skin and circulation, magnesium for sleep, fats that don't spike.",
+    tag: "Vitamin E · Magnesium",
+    serving: "30 g handful",
+    nutrients: [
+      { label: "Vitamin E", value: "7.7 mg",  pct: 52 },
+      { label: "Magnesium", value: "80 mg",   pct: 23 },
+      { label: "Healthy fats", value: "14 g", pct: 22 },
+      { label: "Fiber",     value: "3.5 g",   pct: 14 },
+    ],
     hue: "var(--color-nut-e)",
+    bgHue: "var(--color-nut-e-bg)",
   },
   {
     kicker: "Avocado",
-    line: "Fiber, potassium, and soft fats read better as food than pills.",
+    line: "Fiber, potassium, and soft monounsaturated fats — reads better as food than as a pill, and your gut agrees.",
     tag: "Whole-food energy",
+    serving: "1 medium fruit",
+    nutrients: [
+      { label: "Potassium", value: "975 mg",  pct: 28 },
+      { label: "Fiber",     value: "13.5 g",  pct: 54 },
+      { label: "Vitamin K", value: "42 µg",   pct: 35 },
+      { label: "Folate",    value: "163 µg",  pct: 41 },
+    ],
     hue: "var(--color-nut-mg)",
+    bgHue: "var(--color-nut-mg-bg)",
   },
   {
     kicker: "Chickpeas",
-    line: "Plant protein, iron, and folate without turning the page clinical.",
-    tag: "Plant protein",
+    line: "Plant protein, iron, and folate — without the page turning clinical. They show up in bowls where they need to be.",
+    tag: "Plant protein · Iron",
+    serving: "1 cup cooked",
+    nutrients: [
+      { label: "Iron",    value: "4.7 mg",  pct: 32 },
+      { label: "Protein", value: "15 g",    pct: 30 },
+      { label: "Folate",  value: "282 µg",  pct: 71 },
+      { label: "Fiber",   value: "12.5 g",  pct: 50 },
+    ],
     hue: "var(--color-nut-fe)",
+    bgHue: "var(--color-nut-fe-bg)",
   },
   {
     kicker: "Spinach",
-    line: "Quiet green volume, with vitamin K and minerals doing the work.",
-    tag: "Daily greens",
+    line: "Quiet green volume — vitamin K and minerals doing the work. Cooked or raw, it earns its place.",
+    tag: "Vitamin K · Daily greens",
+    serving: "100 g raw",
+    nutrients: [
+      { label: "Vitamin K", value: "483 µg",  pct: 100 },
+      { label: "Iron",      value: "2.7 mg",  pct: 18 },
+      { label: "Folate",    value: "194 µg",  pct: 49 },
+      { label: "Magnesium", value: "79 mg",   pct: 23 },
+    ],
     hue: "var(--color-nut-k)",
+    bgHue: "var(--color-nut-k-bg)",
   },
 ];
 
-// Each fruit hangs off the central hub. Coordinates in a 100x100 viewBox
-// so the tree scales with whatever aspect ratio the section is given.
-const branches: { x: number; y: number; cx: number; cy: number }[] = [
-  { x: 18, y: 16, cx: 30, cy: 38 }, // top-left
-  { x: 82, y: 16, cx: 70, cy: 38 }, // top-right
-  { x: 6, y: 50, cx: 26, cy: 50 }, // mid-left
-  { x: 94, y: 50, cx: 74, cy: 50 }, // mid-right
-  { x: 22, y: 86, cx: 32, cy: 64 }, // bottom-left
-  { x: 78, y: 86, cx: 68, cy: 64 }, // bottom-right
-];
-
-const branchPath = (b: (typeof branches)[number]) =>
-  `M50 50 Q ${b.cx} ${b.cy} ${b.x} ${b.y}`;
-
-// One viewport-height "slice" of scroll per fruit feels deliberate without
-// dragging on. Lower this if the section feels too long.
-const TRACK_VH_PER_ITEM = 70;
+// 6 * 50 = 300vh total; the sticky child is 100vh, so the pin holds for 200vh
+// — ~33vh per food. Tight enough that the deck flip lands on each step.
+const TRACK_VH_PER_ITEM = 50;
 
 export function VitaminGallery() {
   const reduce = useReducedMotion();
@@ -91,14 +135,11 @@ export function VitaminGallery() {
     });
   }, [scrollYProgress]);
 
-  // Linear scroll-progress bar under the heading
   const progressWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   const activeCaption = captions[active] ?? captions[0];
+  const activePhoto = proteinNatureGallery[active] ?? proteinNatureGallery[0];
 
-  // Scroll the page so a given fruit's slice is roughly centered. Keeps the
-  // fruit buttons usable as direct navigation even though scroll is the
-  // primary driver.
   const scrollToIndex = (i: number) => {
     const el = sectionRef.current;
     if (!el) return;
@@ -116,230 +157,460 @@ export function VitaminGallery() {
   return (
     <section
       ref={sectionRef}
-      className="relative bg-[var(--color-bg)] overflow-hidden"
+      className="relative bg-[var(--color-bg)] [overflow:clip]"
       style={{ height: `${captions.length * TRACK_VH_PER_ITEM}vh` }}
     >
-      <div className="sticky top-0 h-screen flex flex-col justify-center py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 w-full">
-          <div className="relative z-20 mx-auto mb-8 md:mb-10 max-w-3xl text-center">
-            <Eyebrow className="justify-center text-[var(--color-warn)]">
-              Food first
-            </Eyebrow>
-            <h2
-              className="display mt-5 text-[36px] sm:text-[56px] lg:text-[68px] text-[var(--color-text)]"
-              style={{ letterSpacing: 0 }}
-            >
-              A tree of nutrients.
-            </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg leading-relaxed text-[var(--color-text-muted)]">
-              Six whole foods, one living branch. Scroll to see what each one
-              quietly carries.
-            </p>
+      <div className="sticky top-0 h-screen flex flex-col">
+        {/* Soft hue-morphing wash behind everything */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 -z-10 pointer-events-none"
+          animate={{
+            background: `radial-gradient(ellipse 60% 50% at 30% 40%, ${activeCaption.bgHue}b3 0%, var(--color-bg) 65%)`,
+          }}
+          transition={{ duration: 1.0, ease: [0.2, 0.65, 0.3, 0.9] }}
+        />
 
-            <div className="mx-auto mt-6 max-w-xs">
-              <div className="relative h-px overflow-hidden rounded-full bg-[var(--color-border)]">
-                <motion.div
-                  className="absolute inset-y-0 left-0 rounded-full"
-                  style={{
-                    width: progressWidth,
-                    background: activeCaption.hue,
-                  }}
-                />
+        {/* ================= TOP STRIP — eyebrow / heading / progress ================= */}
+        <header className="relative z-10 mx-auto w-full max-w-7xl px-5 sm:px-8 pt-6 md:pt-8 pb-4 md:pb-6">
+          <div className="flex items-end justify-between gap-6 flex-wrap">
+            <div>
+              <Eyebrow className="text-[var(--color-warn)]">Food first</Eyebrow>
+              <h2
+                className="display mt-3 text-[30px] sm:text-[44px] lg:text-[56px] leading-[0.95] text-[var(--color-text)]"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                A tree of{" "}
+                <span
+                  className="italic"
+                  style={{ color: "var(--color-accent-deep)" }}
+                >
+                  nutrients.
+                </span>
+              </h2>
+            </div>
+            <div className="flex items-end gap-5">
+              <div className="hidden sm:block tabular eyebrow text-[var(--color-text-muted)]">
+                <span className="text-[var(--color-text)] text-[18px] font-bold tracking-tight">
+                  {String(active + 1).padStart(2, "0")}
+                </span>
+                <span className="opacity-50 text-[14px]"> / {String(captions.length).padStart(2, "0")}</span>
               </div>
-              <p className="eyebrow mt-3 text-[10px] text-[var(--color-text-muted)]">
-                Keep scrolling
-              </p>
+              <div className="w-44 sm:w-56">
+                <div className="relative h-px overflow-hidden rounded-full bg-[var(--color-border)]">
+                  <motion.div
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{ width: progressWidth, background: activeCaption.hue }}
+                  />
+                </div>
+                <p className="eyebrow mt-2 text-[10px] text-right text-[var(--color-text-muted)]">
+                  Scroll · hover · click
+                </p>
+              </div>
             </div>
           </div>
+        </header>
 
-          <div
-            className="relative mx-auto w-full max-w-[940px] aspect-[3/4] sm:aspect-[5/4] lg:aspect-[16/10]"
-            role="group"
-            aria-label="Vitamin tree — active fruit follows scroll"
-          >
-            <BranchSvg activeIndex={active} reduce={!!reduce} />
+        {/* Hairline divider */}
+        <div
+          aria-hidden
+          className="mx-auto w-full max-w-7xl px-5 sm:px-8"
+        >
+          <div className="h-px bg-[var(--color-border)] opacity-60" />
+        </div>
 
-            <CenterHub caption={activeCaption} reduce={!!reduce} />
-
-            {proteinNatureGallery.map((photo, i) => {
-              const pos = branches[i];
-              const cap = captions[i] ?? captions[0];
-              const isActive = active === i;
+        {/* ================= MAIN STAGE ================= */}
+        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl px-5 sm:px-8 py-5 md:py-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-stretch">
+          {/* LEFT — vertical thumbnail rail (lg) */}
+          <aside className="hidden lg:flex lg:col-span-1 flex-col items-center justify-center gap-4">
+            {captions.map((cap, i) => {
+              const isActive = i === active;
+              const photo = proteinNatureGallery[i] ?? proteinNatureGallery[0];
               return (
-                <motion.button
-                  key={photo.id}
+                <button
+                  key={cap.kicker}
                   type="button"
                   onClick={() => scrollToIndex(i)}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 group focus:outline-none"
-                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.5 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{
-                    duration: 0.7,
-                    ease: [0.16, 1, 0.3, 1],
-                    delay: 0.2 + i * 0.06,
-                  }}
-                  aria-pressed={isActive}
+                  onMouseEnter={() => setActive(i)}
+                  onFocus={() => setActive(i)}
                   aria-label={`Jump to ${cap.kicker}`}
+                  aria-pressed={isActive}
+                  className="group relative flex items-center gap-3 focus:outline-none"
                 >
+                  {/* Active accent bar */}
                   <motion.span
-                    animate={reduce ? undefined : { y: [0, -5, 0] }}
-                    transition={{
-                      duration: 4.5 + i * 0.35,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: i * 0.4,
+                    aria-hidden
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 block w-px"
+                    animate={{
+                      height: isActive ? 28 : 0,
+                      backgroundColor: cap.hue,
                     }}
-                    className="block"
+                    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  />
+                  <motion.span
+                    className="relative block rounded-full overflow-hidden bg-white"
+                    animate={{ width: isActive ? 56 : 36, height: isActive ? 56 : 36 }}
+                    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                    style={{
+                      outline: isActive
+                        ? `2px solid ${cap.hue}`
+                        : "1px solid var(--color-border)",
+                      outlineOffset: isActive ? 3 : 0,
+                      boxShadow:
+                        "0 12px 30px -18px rgba(19,26,22,0.4), 0 2px 6px -3px rgba(19,26,22,0.15)",
+                    }}
                   >
-                    <span
-                      className="relative block w-14 h-14 sm:w-20 sm:h-20 lg:w-28 lg:h-28 rounded-full overflow-hidden bg-white transition-all duration-500 group-hover:scale-[1.04]"
+                    <Image
+                      src={photo.url}
+                      alt={photo.alt}
+                      fill
+                      sizes="56px"
+                      className="object-cover"
+                    />
+                  </motion.span>
+                </button>
+              );
+            })}
+          </aside>
+
+          {/* CENTER — recipe-book card deck */}
+          <div className="lg:col-span-6 relative">
+            <PhotoDeck
+              active={active}
+              activeCaption={activeCaption}
+              activePhoto={activePhoto}
+              captions={captions}
+              reduce={reduce ?? false}
+            />
+          </div>
+
+          {/* RIGHT — info panel */}
+          <div className="lg:col-span-5 relative flex flex-col justify-center min-h-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeCaption.kicker}
+                initial={reduce ? { opacity: 1 } : { opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, x: -16 }}
+                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {/* Big tabular index */}
+                <div className="flex items-baseline gap-2 leading-none mb-3">
+                  <span
+                    className="display-sans tabular text-[64px] sm:text-[88px] lg:text-[112px] leading-[0.85] font-bold"
+                    style={{ color: activeCaption.hue, letterSpacing: "-0.06em" }}
+                  >
+                    {String(active + 1).padStart(2, "0")}
+                  </span>
+                  <span
+                    className="display-sans tabular text-[18px] sm:text-[22px] opacity-30 font-bold"
+                    style={{ letterSpacing: "-0.04em" }}
+                  >
+                    / {String(captions.length).padStart(2, "0")}
+                  </span>
+                </div>
+
+                {/* Name */}
+                <h3
+                  className="display text-[40px] sm:text-[56px] lg:text-[72px] leading-[0.95] text-[var(--color-text)] text-balance"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  {activeCaption.kicker}
+                  <span style={{ color: activeCaption.hue }}>.</span>
+                </h3>
+
+                {/* Caption */}
+                <p className="mt-5 text-[15px] sm:text-base lg:text-[17px] leading-relaxed text-[var(--color-text-muted)] max-w-md">
+                  {activeCaption.line}
+                </p>
+
+                {/* Hairline divider */}
+                <div
+                  aria-hidden
+                  className="my-6 h-px w-12 bg-[var(--color-border)]"
+                  style={{ background: activeCaption.hue, opacity: 0.6 }}
+                />
+
+                {/* Nutrient grid */}
+                <ul className="grid grid-cols-2 gap-x-5 gap-y-4 max-w-md">
+                  {activeCaption.nutrients.map((n, i) => (
+                    <motion.li
+                      key={n.label}
+                      initial={reduce ? { opacity: 1 } : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.4,
+                        delay: 0.15 + i * 0.07,
+                        ease: [0.16, 1, 0.3, 1],
+                      }}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="eyebrow text-[10px] text-[var(--color-text-muted)]">
+                          {n.label}
+                        </span>
+                        <span
+                          className="tabular text-[13px] font-bold"
+                          style={{ color: activeCaption.hue }}
+                        >
+                          {n.value}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1 rounded-full bg-[var(--color-border)] overflow-hidden">
+                        <motion.div
+                          initial={reduce ? { width: `${n.pct}%` } : { width: 0 }}
+                          animate={{ width: `${n.pct}%` }}
+                          transition={{
+                            duration: 0.8,
+                            delay: 0.25 + i * 0.07,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
+                          className="h-full rounded-full"
+                          style={{ background: activeCaption.hue }}
+                        />
+                      </div>
+                    </motion.li>
+                  ))}
+                </ul>
+
+                <p className="eyebrow mt-5 text-[10px] text-[var(--color-text-muted)]">
+                  Bars are % of an adult daily reference (USDA / NIH)
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
+
+        {/* ================= BOTTOM RAIL — horizontal thumbnails (mobile + tablet) ================= */}
+        <footer className="relative z-10 mx-auto w-full max-w-7xl px-5 sm:px-8 pb-5 md:pb-7 lg:hidden">
+          <div className="overflow-x-auto -mx-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-end justify-start sm:justify-center gap-3 min-w-max">
+              {captions.map((cap, i) => {
+                const isActive = i === active;
+                const photo = proteinNatureGallery[i] ?? proteinNatureGallery[0];
+                return (
+                  <button
+                    key={cap.kicker}
+                    type="button"
+                    onClick={() => scrollToIndex(i)}
+                    onMouseEnter={() => setActive(i)}
+                    onFocus={() => setActive(i)}
+                    aria-pressed={isActive}
+                    aria-label={`Jump to ${cap.kicker}`}
+                    className="group flex flex-col items-center gap-1.5 flex-shrink-0 focus:outline-none"
+                  >
+                    <motion.span
+                      className="block rounded-full overflow-hidden bg-white"
+                      animate={{ width: isActive ? 56 : 40, height: isActive ? 56 : 40 }}
+                      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                       style={{
-                        boxShadow:
-                          "0 18px 40px -22px rgba(19,26,22,0.45), 0 4px 10px -6px rgba(19,26,22,0.18)",
-                        transform: isActive ? "scale(1.08)" : undefined,
                         outline: isActive
                           ? `2px solid ${cap.hue}`
-                          : "1px solid rgba(255,255,255,0.7)",
-                        outlineOffset: isActive ? 4 : 0,
+                          : "1px solid var(--color-border)",
+                        outlineOffset: isActive ? 3 : 0,
+                        boxShadow:
+                          "0 10px 22px -14px rgba(19,26,22,0.35), 0 2px 4px -2px rgba(19,26,22,0.12)",
                       }}
                     >
                       <Image
                         src={photo.url}
                         alt={photo.alt}
                         fill
-                        sizes="(max-width: 640px) 56px, (max-width: 1024px) 80px, 112px"
-                        className="object-cover transition-transform duration-700 group-hover:scale-110"
-                        priority={i < 2}
+                        sizes="56px"
+                        className="object-cover"
                       />
-                    </span>
-                  </motion.span>
-                  <span
-                    className="mt-2 block eyebrow text-center transition-colors"
-                    style={{
-                      color: isActive ? cap.hue : "var(--color-text-muted)",
-                    }}
-                  >
-                    {cap.kicker}
-                  </span>
-                </motion.button>
-              );
-            })}
+                    </motion.span>
+                    <motion.span
+                      className="block eyebrow text-[9px] tracking-[0.14em] transition-colors"
+                      animate={{
+                        color: isActive
+                          ? cap.hue
+                          : "var(--color-text-muted)",
+                      }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      {cap.kicker}
+                    </motion.span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </footer>
       </div>
     </section>
   );
 }
 
-function BranchSvg({
-  activeIndex,
+/* ───────── Card-deck flip stage ─────────
+   Stack of recipe-book pages: 2 photos peek behind the active one.
+   Active card page-turns off (rotateY around its left edge) on change.
+   Whole deck tilts subtly toward the cursor for tactile parallax. */
+function PhotoDeck({
+  active,
+  activeCaption,
+  activePhoto,
+  captions,
   reduce,
 }: {
-  activeIndex: number;
+  active: number;
+  activeCaption: Caption;
+  activePhoto: (typeof proteinNatureGallery)[number];
+  captions: Caption[];
   reduce: boolean;
 }) {
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      className="absolute inset-0 z-0 h-full w-full"
-      aria-hidden
-    >
-      {branches.map((b, i) => {
-        const cap = captions[i] ?? captions[0];
-        const isActive = activeIndex === i;
-        return (
-          <g key={i}>
-            <motion.path
-              d={branchPath(b)}
-              fill="none"
-              stroke="var(--color-border)"
-              strokeWidth={0.25}
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-              initial={reduce ? { pathLength: 1 } : { pathLength: 0 }}
-              whileInView={{ pathLength: 1 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{
-                duration: 1.4,
-                ease: [0.16, 1, 0.3, 1],
-                delay: 0.1 * i,
-              }}
-            />
-            <motion.path
-              d={branchPath(b)}
-              fill="none"
-              stroke={cap.hue}
-              strokeWidth={0.5}
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{
-                pathLength: isActive ? 1 : 0,
-                opacity: isActive ? 0.85 : 0,
-              }}
-              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-            />
-            <motion.circle
-              cx={b.x}
-              cy={b.y}
-              r={isActive ? 1.1 : 0.7}
-              fill={cap.hue}
-              opacity={isActive ? 0.9 : 0.45}
-              animate={{ r: isActive ? 1.1 : 0.7 }}
-              transition={{ duration: 0.4 }}
-            />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
+  const wrapRef = useRef<HTMLDivElement>(null);
 
-function CenterHub({
-  caption,
-  reduce,
-}: {
-  caption: Caption;
-  reduce: boolean;
-}) {
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const tiltX = useSpring(useTransform(my, [-0.5, 0.5], [6, -6]), {
+    stiffness: 140,
+    damping: 18,
+    mass: 0.4,
+  });
+  const tiltY = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), {
+    stiffness: 140,
+    damping: 18,
+    mass: 0.4,
+  });
+
+  const onMove = (e: React.MouseEvent) => {
+    if (reduce) return;
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (!r) return;
+    mx.set((e.clientX - r.left) / r.width - 0.5);
+    my.set((e.clientY - r.top) / r.height - 0.5);
+  };
+  const onLeave = () => {
+    mx.set(0);
+    my.set(0);
+  };
+
+  const peekOffsets = [2, 1] as const;
+
   return (
-    <div className="absolute left-1/2 top-1/2 z-10 w-[60%] sm:w-[44%] lg:w-[36%] -translate-x-1/2 -translate-y-1/2">
-      <div className="relative aspect-square">
-        <div className="absolute inset-[-7%] rounded-full border border-dashed border-[var(--color-border)] opacity-40 pointer-events-none" />
-        <div className="relative flex h-full w-full items-center justify-center rounded-full bg-[var(--color-accent-soft)] border border-[var(--color-border)] px-5 sm:px-7 text-center shadow-[0_30px_70px_-40px_rgba(19,26,22,0.35)]">
-          <AnimatePresence mode="wait">
+    <div
+      ref={wrapRef}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      className="relative h-full w-full min-h-[300px] sm:min-h-[400px] lg:min-h-0 aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto"
+      style={{ perspective: 1800 }}
+    >
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          rotateX: reduce ? 0 : tiltX,
+          rotateY: reduce ? 0 : tiltY,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {peekOffsets.map((offset) => {
+          const idx = (active + offset) % captions.length;
+          const ph = proteinNatureGallery[idx] ?? proteinNatureGallery[0];
+          return (
             <motion.div
-              key={caption.kicker}
-              initial={
-                reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96 }
-              }
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              key={`peek-slot-${offset}`}
+              className="absolute inset-0 overflow-hidden rounded-2xl"
+              animate={{
+                x: offset * 14,
+                y: offset * 10,
+                rotate: offset * 2.2,
+                scale: 1 - offset * 0.04,
+                opacity: 1 - offset * 0.32,
+              }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                boxShadow:
+                  "0 30px 60px -30px rgba(19,26,22,0.35), inset 0 0 0 1px rgba(255,255,255,0.3)",
+                zIndex: -offset,
+              }}
             >
-              <span
-                className="eyebrow inline-flex items-center gap-2"
-                style={{ color: caption.hue }}
-              >
-                <span className="block h-px w-6 bg-current opacity-50" />
-                {caption.tag}
-              </span>
-              <h3
-                className="display mt-3 text-[22px] sm:text-[32px] lg:text-[42px] leading-none text-[var(--color-text)] text-balance"
-                style={{ letterSpacing: 0 }}
-              >
-                {caption.kicker}.
-              </h3>
-              <p className="mt-3 text-xs sm:text-sm lg:text-base leading-relaxed text-[var(--color-text-muted)] text-balance">
-                {caption.line}
-              </p>
+              <Image
+                src={ph.url}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 90vw, 600px"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-[var(--color-bg)]/25" />
             </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
+          );
+        })}
+
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={activeCaption.kicker}
+            className="absolute inset-0 overflow-hidden rounded-2xl"
+            style={{
+              transformOrigin: "left center",
+              transformStyle: "preserve-3d",
+              boxShadow:
+                "0 50px 100px -50px rgba(19,26,22,0.45), 0 8px 24px -12px rgba(19,26,22,0.18), inset 0 0 0 1px rgba(255,255,255,0.4)",
+              zIndex: 1,
+            }}
+            initial={
+              reduce
+                ? { opacity: 1, rotateY: 0, x: 0 }
+                : { opacity: 0, rotateY: 55, x: 24 }
+            }
+            animate={{ opacity: 1, rotateY: 0, x: 0 }}
+            exit={
+              reduce
+                ? { opacity: 0 }
+                : { opacity: 0, rotateY: -155, x: -8 }
+            }
+            transition={{ duration: 0.55, ease: [0.65, 0, 0.35, 1] }}
+          >
+            <Image
+              src={activePhoto.url}
+              alt={activePhoto.alt}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 600px"
+              className="object-cover"
+              priority
+            />
+            <div
+              aria-hidden
+              className="absolute inset-x-0 bottom-0 h-1/3"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(19,26,22,0.55) 0%, rgba(19,26,22,0.0) 100%)",
+              }}
+            />
+            <div className="absolute left-4 bottom-4 right-4 flex items-end justify-between gap-3 text-white">
+              <span className="eyebrow text-[10px] tracking-[0.18em] text-white/85">
+                Food · {activeCaption.kicker}
+              </span>
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur"
+                style={{
+                  background: "rgba(255,255,255,0.18)",
+                  color: "white",
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                }}
+              >
+                {activeCaption.serving}
+              </span>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+
+      <motion.div
+        className="absolute -top-3 -left-3 z-20 hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
+        animate={{ color: activeCaption.hue }}
+        transition={{ duration: 0.5 }}
+        style={{
+          boxShadow:
+            "0 12px 28px -16px rgba(19,26,22,0.35), inset 0 0 0 1px var(--color-border)",
+        }}
+      >
+        <motion.span
+          className="block w-2 h-2 rounded-full"
+          animate={{ background: activeCaption.hue }}
+          transition={{ duration: 0.5 }}
+        />
+        {activeCaption.tag}
+      </motion.div>
     </div>
   );
 }

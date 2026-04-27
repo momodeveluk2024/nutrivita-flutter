@@ -84,6 +84,7 @@ func (a *App) Routes() http.Handler {
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		a.metrics.writePrometheus(w)
 	})
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("data/uploads"))))
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -105,14 +106,27 @@ func (a *App) Routes() http.Handler {
 			r.Get("/admin/overview", a.handleAdminOverview)
 			r.Get("/admin/users", a.handleAdminUsers)
 			r.Get("/admin/users/{userID}", a.handleAdminUser)
+			r.Patch("/admin/users/{userID}", a.handleAdminUpdateUserProfile)
+			r.Post("/admin/users/{userID}/verify", a.handleAdminVerifyUser)
+			r.Post("/admin/users/{userID}/suspend", a.handleAdminSuspendUser)
+			r.Post("/admin/users/{userID}/unsuspend", a.handleAdminUnsuspendUser)
+			r.Delete("/admin/users/{userID}", a.handleAdminDeleteUser)
+			r.Delete("/admin/users/{userID}/sessions/{sessionID}", a.handleAdminRevokeUserSession)
 			r.Get("/admin/logs", a.handleAdminLogs)
 			r.Get("/admin/nutrients", a.handleAdminNutrients)
+			r.Post("/admin/nutrients", a.handleAdminCreateNutrient)
+			r.Patch("/admin/nutrients/{code}", a.handleAdminUpdateNutrient)
 			r.Patch("/admin/nutrients/{code}/dri", a.handleAdminUpdateNutrientDRI)
 			r.Get("/admin/foods", a.handleAdminFoods)
+			r.Post("/admin/foods", a.handleAdminCreateFood)
 			r.Patch("/admin/foods/{foodID}", a.handleAdminUpdateFood)
+			r.Post("/admin/foods/{foodID}/image", a.handleAdminUploadFoodImage)
 			r.Post("/admin/foods/{foodID}/verify", a.handleAdminVerifyFood)
 			r.Delete("/admin/foods/{foodID}", a.handleAdminDeleteFood)
 			r.Get("/admin/reminders", a.handleAdminReminders)
+			r.Get("/admin/reminder-templates", a.handleAdminReminderTemplates)
+			r.Post("/admin/reminder-templates", a.handleAdminCreateReminderTemplate)
+			r.Patch("/admin/reminder-templates/{templateID}", a.handleAdminUpdateReminderTemplate)
 			r.Get("/admin/audit-log", a.handleAdminAuditLog)
 		})
 		r.Group(func(r chi.Router) {

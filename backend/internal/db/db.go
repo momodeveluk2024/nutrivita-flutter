@@ -42,6 +42,8 @@ type User struct {
 	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
+	SuspendedAt     *time.Time `json:"suspended_at,omitempty"`
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
 }
 
 type Profile struct {
@@ -154,9 +156,9 @@ func (s *Store) CreateUserWithProfile(ctx context.Context, params CreateUserPara
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at
+		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at, suspended_at, deleted_at
 		FROM users
-		WHERE email = $1 AND deleted_at IS NULL
+		WHERE email = $1 AND deleted_at IS NULL AND suspended_at IS NULL
 	`, email).Scan(
 		&user.ID,
 		&user.Email,
@@ -165,6 +167,8 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) 
 		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.SuspendedAt,
+		&user.DeletedAt,
 	)
 	return user, err
 }
@@ -172,9 +176,9 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) 
 func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	var user User
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at
+		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at, suspended_at, deleted_at
 		FROM users
-		WHERE id = $1 AND deleted_at IS NULL
+		WHERE id = $1 AND deleted_at IS NULL AND suspended_at IS NULL
 	`, id).Scan(
 		&user.ID,
 		&user.Email,
@@ -183,6 +187,8 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.SuspendedAt,
+		&user.DeletedAt,
 	)
 	return user, err
 }
@@ -377,7 +383,7 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		    p.preferences
 		FROM users u
 		JOIN user_profiles p ON p.user_id = u.id
-		WHERE u.id = $1 AND u.deleted_at IS NULL
+		WHERE u.id = $1 AND u.deleted_at IS NULL AND u.suspended_at IS NULL
 	`, userID).Scan(
 		&me.ID,
 		&me.Email,

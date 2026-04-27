@@ -99,6 +99,7 @@ func (a *App) handleCreateFood(w http.ResponseWriter, r *http.Request) {
 		Category:     strings.ToLower(strings.TrimSpace(request.Category)),
 		ServingSizeG: request.ServingSizeG,
 		Barcode:      trimOptional(request.Barcode),
+		ImageURL:     trimOptional(request.ImageURL),
 		Nutrients:    request.Nutrients,
 	})
 	if err != nil {
