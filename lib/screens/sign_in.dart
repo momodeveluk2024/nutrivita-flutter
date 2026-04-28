@@ -114,7 +114,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                 const TextSpan(text: 'Welcome '),
                                 TextSpan(
                                   text: 'back.',
-                                  style: GoogleFonts.fraunces(
+                                  style: GoogleFonts.instrumentSerif(
                                     fontStyle: FontStyle.italic,
                                     fontWeight: FontWeight.w500,
                                     fontSize: 36,

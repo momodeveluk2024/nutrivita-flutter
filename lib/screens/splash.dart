@@ -137,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         const TextSpan(text: 'Find the vitamins\nin every '),
                         TextSpan(
                           text: 'bite.',
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.instrumentSerif(
                             fontStyle: FontStyle.italic,
                             fontWeight: FontWeight.w500,
                             fontSize: 42,

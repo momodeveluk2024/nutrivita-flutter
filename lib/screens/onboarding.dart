@@ -172,7 +172,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     TextSpan(text: s.titleLead),
                                     TextSpan(
                                       text: s.titleAccent,
-                                      style: GoogleFonts.fraunces(
+                                      style: GoogleFonts.instrumentSerif(
                                         fontStyle: FontStyle.italic,
                                         fontWeight: FontWeight.w500,
                                         fontSize: 32,

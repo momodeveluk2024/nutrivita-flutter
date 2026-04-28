@@ -63,29 +63,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 6),
                       RichText(
                         text: TextSpan(
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: c.text,
+                          style: GoogleFonts.instrumentSerif(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 32,
                             letterSpacing: -0.6,
                             height: 1.05,
+                            color: c.text,
                           ),
                           children: [
-                            const TextSpan(text: 'Good '),
                             TextSpan(
-                              text: _timeOfDayWord(now),
-                              style: GoogleFonts.fraunces(
+                              text: '${_capitalize(_timeOfDayWord(now))}, ',
+                            ),
+                            TextSpan(
+                              text:
+                                  user?.displayName.split(' ').first ?? 'friend',
+                              style: GoogleFonts.instrumentSerif(
                                 fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 28,
+                                fontWeight: FontWeight.w400,
+                                fontSize: 32,
                                 letterSpacing: -0.6,
                                 height: 1.05,
                                 color: c.text,
                               ),
-                            ),
-                            TextSpan(
-                              text:
-                                  ', ${user?.displayName.split(' ').first ?? 'friend'}.',
                             ),
                           ],
                         ),
@@ -146,6 +145,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (h < 21) return 'evening';
     return 'night';
   }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   String _weekday(DateTime date) => const [
     'Monday',

@@ -140,7 +140,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 const TextSpan(text: 'Create '),
                                 TextSpan(
                                   text: 'account.',
-                                  style: GoogleFonts.fraunces(
+                                  style: GoogleFonts.instrumentSerif(
                                     fontStyle: FontStyle.italic,
                                     fontWeight: FontWeight.w500,
                                     fontSize: 36,
