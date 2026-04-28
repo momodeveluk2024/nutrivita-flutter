@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/visual_catalog.dart';
@@ -91,13 +92,38 @@ class _SignInScreenState extends State<SignInScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Welcome back',
+                            'RETURNING',
                             style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0,
-                              height: 1.08,
-                              color: c.text,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.2,
+                              color: NV.accent,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.8,
+                                height: 1.05,
+                                color: c.text,
+                              ),
+                              children: [
+                                const TextSpan(text: 'Welcome '),
+                                TextSpan(
+                                  text: 'back.',
+                                  style: GoogleFonts.fraunces(
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 36,
+                                    letterSpacing: -0.8,
+                                    height: 1.05,
+                                    color: c.text,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 8),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/models/visual_catalog.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -108,28 +109,59 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    'Find the vitamins in every bite.',
+                    'WELCOME · NUTRIMATE',
                     style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
-                      height: 1.05,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          blurRadius: 18,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.2,
+                      color: Colors.white.withValues(alpha: 0.78),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                        height: 1.04,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.32),
+                            blurRadius: 18,
+                          ),
+                        ],
+                      ),
+                      children: [
+                        const TextSpan(text: 'Find the vitamins\nin every '),
+                        TextSpan(
+                          text: 'bite.',
+                          style: GoogleFonts.fraunces(
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 42,
+                            letterSpacing: -1,
+                            height: 1.04,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.32),
+                                blurRadius: 18,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Text(
                     'Real foods, clear nutrients, daily tracking that feels effortless.',
                     style: TextStyle(
                       fontSize: 15,
-                      height: 1.45,
-                      color: Colors.white.withValues(alpha: 0.82),
+                      height: 1.5,
+                      color: Colors.white.withValues(alpha: 0.86),
                     ),
                   ),
                   const SizedBox(height: 22),

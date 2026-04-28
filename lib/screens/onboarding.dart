@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/models/visual_catalog.dart';
@@ -18,21 +19,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _slides = <_Slide>[
     _Slide(
-      title: 'Know what you are eating',
+      titleLead: 'Know what you\nare ',
+      titleAccent: 'eating.',
       body:
           'See the full vitamin and mineral breakdown for real foods, down to the micro-gram.',
       category: 'vegetables',
       icon: Icons.auto_awesome,
     ),
     _Slide(
-      title: 'Built around you',
+      titleLead: 'Built around\n',
+      titleAccent: 'you.',
       body:
           'Tell us a little about yourself and we will tailor daily targets to your body and goals.',
       category: 'dairy',
       icon: Icons.spa_outlined,
     ),
     _Slide(
-      title: 'Track without the hassle',
+      titleLead: 'Track without the\n',
+      titleAccent: 'hassle.',
       body:
           'A gentle daily log with the nutrients that matter most, without noisy calorie counting.',
       category: 'seafood',
@@ -144,14 +148,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             key: ValueKey(s.title),
                             children: [
                               Text(
-                                s.title,
+                                'STEP ${_slide + 1} · ${_slides.length}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 27,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0,
-                                  height: 1.12,
-                                  color: c.text,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 2.2,
+                                  color: NV.accent,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.6,
+                                    height: 1.1,
+                                    color: c.text,
+                                  ),
+                                  children: [
+                                    TextSpan(text: s.titleLead),
+                                    TextSpan(
+                                      text: s.titleAccent,
+                                      style: GoogleFonts.fraunces(
+                                        fontStyle: FontStyle.italic,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 32,
+                                        letterSpacing: -0.6,
+                                        height: 1.1,
+                                        color: c.text,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -277,15 +307,19 @@ class _SlideHero extends StatelessWidget {
 }
 
 class _Slide {
-  final String title;
+  final String titleLead;
+  final String titleAccent;
   final String body;
   final String category;
   final IconData icon;
 
   const _Slide({
-    required this.title,
+    required this.titleLead,
+    required this.titleAccent,
     required this.body,
     required this.category,
     required this.icon,
   });
+
+  String get title => '$titleLead$titleAccent';
 }
