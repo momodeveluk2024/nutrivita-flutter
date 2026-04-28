@@ -428,7 +428,7 @@ class ProfileAboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SettingsScaffold(
-      title: 'About NutriVita',
+      title: 'About Nutrimate',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -438,7 +438,7 @@ class ProfileAboutScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'NutriVita',
+                  'Nutrimate',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),

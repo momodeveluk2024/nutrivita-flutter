@@ -1,5 +1,5 @@
 name: myapplication
-description: "A new Flutter project."
+description: "Nutrimate — know what's actually in your meals."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -41,6 +41,7 @@ dependencies:
   go_router: ^17.2.2
   google_fonts: ^8.0.2
   shimmer: ^3.0.0
+  video_player: ^2.10.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/branding/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

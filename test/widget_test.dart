@@ -9,18 +9,18 @@ import 'package:myapplication/core/storage/secure_storage.dart';
 import 'package:myapplication/main.dart';
 
 void main() {
-  testWidgets('NutriVita boots to splash', (WidgetTester tester) async {
+  testWidgets('Nutrimate boots to splash', (WidgetTester tester) async {
     const storage = SecureTokenStorage();
     final api = ApiClient(tokenStorage: storage);
     await tester.pumpWidget(
-      NutriVitaApp(
+      NutrimateApp(
         authProvider: AuthProvider(api: api, storage: storage),
         foodProvider: FoodProvider(api: api),
         nutritionProvider: NutritionProvider(api: api),
         reminderProvider: ReminderProvider(api: api),
       ),
     );
-    expect(find.text('NutriVita'), findsOneWidget);
+    expect(find.text('Nutrimate'), findsOneWidget);
     expect(find.text('Get started'), findsOneWidget);
   });
 }

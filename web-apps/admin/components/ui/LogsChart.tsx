@@ -18,7 +18,14 @@ export function LogsChart({ data }: { data: Datum[] }) {
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="day" tickLine={false} axisLine={false} interval={1} />
+          <XAxis
+            dataKey="day"
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
+            minTickGap={28}
+            tick={{ fontSize: 11 }}
+          />
           <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={(v) => Intl.NumberFormat("en", { notation: "compact" }).format(v)} />
           <Tooltip
             cursor={{ stroke: "#2F7D4A", strokeOpacity: 0.2, strokeWidth: 2 }}

@@ -11,9 +11,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NV Admin",
-  description: "Administer the NutriVita food database, nutrients, users and reminders.",
+  title: "Nutrimate Admin",
+  description: "Administer the Nutrimate food database, nutrients, users and reminders.",
   robots: { index: false, follow: false },
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

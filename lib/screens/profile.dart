@@ -16,7 +16,7 @@ class ProfileScreen extends StatelessWidget {
     final vitA = vitaminColors['A']!;
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
-    final displayName = user?.displayName ?? 'NutriVita user';
+    final displayName = user?.displayName ?? 'Nutrimate user';
     final email = user?.email ?? '';
     final initials = user?.initials ?? '?';
     final isVerified = user?.isEmailVerified ?? false;
@@ -271,7 +271,7 @@ class ProfileScreen extends StatelessWidget {
                       _div(c),
                       _Row(
                         icon: Icons.info_outline,
-                        title: 'About NutriVita',
+                        title: 'About Nutrimate',
                         detail: '',
                         onTap: () => context.push('/app/profile/about'),
                       ),

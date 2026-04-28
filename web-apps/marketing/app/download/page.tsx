@@ -33,7 +33,7 @@ export default function DownloadPage() {
       <header className="pt-40 pb-12">
         <div className="mx-auto max-w-3xl px-6 text-center">
           <RevealOnView>
-            <Eyebrow>Get NV</Eyebrow>
+            <Eyebrow>Get Nutrimate</Eyebrow>
             <h1 className="display-sans text-[clamp(48px,7vw,96px)] mt-6 leading-[0.95]">
               Free. No account required to try.
             </h1>

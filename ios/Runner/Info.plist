@@ -15,7 +15,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>myapplication</string>
+	<string>Nutrimate</string>
+	<key>CFBundleDisplayName</key>
+	<string>Nutrimate</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

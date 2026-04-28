@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
@@ -40,10 +41,17 @@ export function Sidebar() {
     <aside className="w-[240px] border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col sticky top-0 h-screen">
       <div className="px-4 pt-5 pb-4">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="grid place-items-center w-8 h-8 rounded-[10px] bg-[var(--color-accent)] text-white font-extrabold text-sm tracking-tighter">
-            NV
+          <span className="relative w-9 h-9 grid place-items-center group-hover:scale-95 transition-transform">
+            <Image
+              src="/logo.png"
+              alt="Nutrimate logo"
+              width={36}
+              height={36}
+              className="object-contain"
+              priority
+            />
           </span>
-          <span className="font-semibold tracking-tight">NV Admin</span>
+          <span className="font-semibold tracking-tight">Nutrimate Admin</span>
         </Link>
       </div>
 

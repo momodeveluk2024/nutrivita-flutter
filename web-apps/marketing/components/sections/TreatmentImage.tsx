@@ -125,7 +125,7 @@ export function TreatmentImage({ treatment, photo, side, inView, delay = 0.5, ca
           </div>
           {/* Engraved label across the bottom of the frame */}
           <p className="text-center text-white py-2 eyebrow tracking-[0.2em]">
-            NV - {stampNumber}
+            Nutrimate - {stampNumber}
           </p>
         </motion.div>
       );
@@ -148,7 +148,7 @@ export function TreatmentImage({ treatment, photo, side, inView, delay = 0.5, ca
             <Image src={photo.url} alt={photo.alt} fill sizes="260px" className="object-cover" />
           </div>
           <p className="text-center mt-2 text-[10px] eyebrow tracking-[0.18em]">
-            Stamped · NV
+            Stamped · Nutrimate
           </p>
         </motion.div>
       );

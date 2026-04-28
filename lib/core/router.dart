@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/app_shell.dart';
 import '../screens/food_detail.dart';
+import '../screens/intro_video.dart';
 import '../screens/onboarding.dart';
 import '../screens/password_reset.dart';
 import '../screens/profile_settings.dart';
@@ -22,6 +23,7 @@ GoRouter buildRouter(AuthProvider auth) {
       final path = state.uri.path;
       final authPages = {
         '/',
+        '/welcome',
         '/onboarding',
         '/sign-up',
         '/sign-in',
@@ -40,7 +42,8 @@ GoRouter buildRouter(AuthProvider auth) {
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/', builder: (context, state) => const IntroVideoScreen()),
+      GoRoute(path: '/welcome', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),

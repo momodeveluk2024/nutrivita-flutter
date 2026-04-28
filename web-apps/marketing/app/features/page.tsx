@@ -15,7 +15,7 @@ export default function FeaturesPage() {
               Every detail of your nutrition, made calm and visible.
             </h1>
             <p className="mt-8 text-xl text-[var(--color-text-muted)] max-w-2xl leading-relaxed">
-              Six things NV does well — and the design choices behind each one.
+              Six things Nutrimate does well — and the design choices behind each one.
             </p>
           </RevealOnView>
         </div>

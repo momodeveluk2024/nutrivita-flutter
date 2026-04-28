@@ -59,7 +59,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold tracking-tight">Meal log volume</h3>
-              <p className="text-[12px] text-[var(--color-text-muted)]">Last 14 days - all users</p>
+              <p className="text-[12px] text-[var(--color-text-muted)]">
+                {range === "year" ? "Last 12 months" : range === "month" ? "Last 30 days" : "Last 7 days"} · all users
+              </p>
             </div>
             <div className="flex gap-1.5">
               <Chip variant="accent" dot>Logs</Chip>

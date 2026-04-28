@@ -220,7 +220,7 @@ export function VitaminGallery() {
         </div>
 
         {/* ================= MAIN STAGE ================= */}
-        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl px-5 sm:px-8 py-5 md:py-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-stretch">
+        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl px-5 sm:px-8 py-3 md:py-7 grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-12 items-stretch">
           {/* LEFT — vertical thumbnail rail (lg) */}
           <aside className="hidden lg:flex lg:col-span-1 flex-col items-center justify-center gap-4">
             {captions.map((cap, i) => {
@@ -293,15 +293,15 @@ export function VitaminGallery() {
                 transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               >
                 {/* Big tabular index */}
-                <div className="flex items-baseline gap-2 leading-none mb-3">
+                <div className="flex items-baseline gap-2 leading-none mb-2 sm:mb-3">
                   <span
-                    className="display-sans tabular text-[64px] sm:text-[88px] lg:text-[112px] leading-[0.85] font-bold"
+                    className="display-sans tabular text-[44px] sm:text-[88px] lg:text-[112px] leading-[0.85] font-bold"
                     style={{ color: activeCaption.hue, letterSpacing: "-0.06em" }}
                   >
                     {String(active + 1).padStart(2, "0")}
                   </span>
                   <span
-                    className="display-sans tabular text-[18px] sm:text-[22px] opacity-30 font-bold"
+                    className="display-sans tabular text-[14px] sm:text-[22px] opacity-30 font-bold"
                     style={{ letterSpacing: "-0.04em" }}
                   >
                     / {String(captions.length).padStart(2, "0")}
@@ -310,7 +310,7 @@ export function VitaminGallery() {
 
                 {/* Name */}
                 <h3
-                  className="display text-[40px] sm:text-[56px] lg:text-[72px] leading-[0.95] text-[var(--color-text)] text-balance"
+                  className="display text-[30px] sm:text-[56px] lg:text-[72px] leading-[0.95] text-[var(--color-text)] text-balance"
                   style={{ letterSpacing: "-0.02em" }}
                 >
                   {activeCaption.kicker}
@@ -318,19 +318,19 @@ export function VitaminGallery() {
                 </h3>
 
                 {/* Caption */}
-                <p className="mt-5 text-[15px] sm:text-base lg:text-[17px] leading-relaxed text-[var(--color-text-muted)] max-w-md">
+                <p className="mt-3 sm:mt-5 text-[13px] sm:text-base lg:text-[17px] leading-snug sm:leading-relaxed text-[var(--color-text-muted)] max-w-md">
                   {activeCaption.line}
                 </p>
 
                 {/* Hairline divider */}
                 <div
                   aria-hidden
-                  className="my-6 h-px w-12 bg-[var(--color-border)]"
+                  className="my-3 sm:my-6 h-px w-12 bg-[var(--color-border)]"
                   style={{ background: activeCaption.hue, opacity: 0.6 }}
                 />
 
                 {/* Nutrient grid */}
-                <ul className="grid grid-cols-2 gap-x-5 gap-y-4 max-w-md">
+                <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5 sm:gap-y-4 max-w-md">
                   {activeCaption.nutrients.map((n, i) => (
                     <motion.li
                       key={n.label}
@@ -484,7 +484,7 @@ function PhotoStage({
       ref={wrapRef}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      className="relative h-full w-full min-h-[300px] sm:min-h-[400px] lg:min-h-0 aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto"
+      className="relative h-full w-full lg:min-h-0 aspect-[5/3] sm:aspect-[5/4] lg:aspect-auto"
       style={{ perspective: 1800 }}
     >
       <motion.div

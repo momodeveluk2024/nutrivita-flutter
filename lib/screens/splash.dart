@@ -82,21 +82,22 @@ class _SplashScreenState extends State<SplashScreen> {
                   Row(
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(
-                          Icons.eco,
-                          color: NV.accent,
-                          size: 28,
+                        clipBehavior: Clip.antiAlias,
+                        padding: const EdgeInsets.all(6),
+                        child: Image.asset(
+                          'assets/branding/logo.png',
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(width: 12),
                       const Text(
-                        'NutriVita',
+                        'Nutrimate',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,

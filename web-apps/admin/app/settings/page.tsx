@@ -96,7 +96,7 @@ export default function SettingsPage() {
 
           <Card id="integrations">
             <h3 className="text-lg font-semibold tracking-tight">Integrations</h3>
-            <p className="text-[12px] text-[var(--color-text-muted)] mt-1 mb-4">External services NV connects to.</p>
+            <p className="text-[12px] text-[var(--color-text-muted)] mt-1 mb-4">External services Nutrimate connects to.</p>
             <div className="space-y-2">
               <Integration name="USDA FoodData Central" desc="Source of seed nutrient data"   connected />
               <Integration name="Firebase Cloud Messaging" desc="Android push notifications"   connected />

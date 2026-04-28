@@ -235,7 +235,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 child: Text.rich(
                                   TextSpan(
                                     text:
-                                        'I agree to NutriVita Terms and Privacy Policy.',
+                                        'I agree to Nutrimate Terms and Privacy Policy.',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: c.textMuted,

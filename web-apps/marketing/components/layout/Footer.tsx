@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { photos } from "@/lib/images";
 
@@ -10,10 +11,10 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-12">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
-              <span className="grid place-items-center w-8 h-8 rounded-[10px] bg-[var(--color-accent)] text-white font-extrabold text-sm">
-                NV
+              <span className="relative w-9 h-9 grid place-items-center">
+                <Image src="/logo.png" alt="Nutrimate logo" width={36} height={36} className="object-contain" />
               </span>
-              <span className="font-semibold tracking-tight">NutriVita</span>
+              <span className="font-semibold tracking-tight">Nutrimate</span>
             </Link>
             <p className="text-sm text-[var(--color-text-muted)] max-w-sm leading-relaxed">
               A nutrition tracker built around vitamins and minerals — not just calories.
@@ -41,7 +42,7 @@ export function Footer() {
         </div>
 
         <div className="mt-16 pt-8 border-t border-[var(--color-border)] flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-[var(--color-text-muted)]">
-          <p>© 2026 NutriVita. All rights reserved.</p>
+          <p>© 2026 Nutrimate. All rights reserved.</p>
           <p>
             Photography by {photographers.map((p, i) => (
               <span key={p}>

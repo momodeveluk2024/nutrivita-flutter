@@ -21,7 +21,7 @@ Future<void> main() async {
   final authProvider = AuthProvider(api: api, storage: storage);
   await authProvider.initialize();
 
-  final app = NutriVitaApp(
+  final app = NutrimateApp(
     authProvider: authProvider,
     foodProvider: FoodProvider(api: api),
     nutritionProvider: NutritionProvider(api: api),
@@ -35,8 +35,8 @@ Future<void> main() async {
   );
 }
 
-class NutriVitaApp extends StatelessWidget {
-  const NutriVitaApp({
+class NutrimateApp extends StatelessWidget {
+  const NutrimateApp({
     super.key,
     required this.authProvider,
     required this.foodProvider,
@@ -73,7 +73,7 @@ class NutriVitaApp extends StatelessWidget {
             builder: kDebugMode && _enableDevicePreview
                 ? DevicePreview.appBuilder
                 : null,
-            title: 'NutriVita',
+            title: 'Nutrimate',
             debugShowCheckedModeBanner: false,
             theme: NVTheme.light(),
             darkTheme: NVTheme.dark(),
