@@ -8,6 +8,7 @@ class AppUser {
     required this.units,
     required this.locale,
     required this.timezone,
+    this.avatarUrl,
     this.emailVerifiedAt,
     this.sex,
     this.dateOfBirth,
@@ -24,6 +25,7 @@ class AppUser {
   final String id;
   final String email;
   final String displayName;
+  final String? avatarUrl;
   final String units;
   final String locale;
   final String timezone;
@@ -82,6 +84,7 @@ class AppUser {
       id: json['id'] as String,
       email: json['email'] as String,
       displayName: json['display_name'] as String? ?? 'Friend',
+      avatarUrl: json['avatar_url'] as String?,
       units: json['units'] as String? ?? 'metric',
       locale: json['locale'] as String? ?? 'en',
       timezone: json['timezone'] as String? ?? 'UTC',

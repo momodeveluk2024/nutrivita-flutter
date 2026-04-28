@@ -49,6 +49,7 @@ type User struct {
 type Profile struct {
 	UserID          uuid.UUID       `json:"user_id"`
 	DisplayName     string          `json:"display_name"`
+	AvatarURL       *string         `json:"avatar_url,omitempty"`
 	Sex             *string         `json:"sex,omitempty"`
 	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
 	HeightCM        *float64        `json:"height_cm,omitempty"`
@@ -80,6 +81,7 @@ type Me struct {
 	EmailVerifiedAt *time.Time      `json:"email_verified_at,omitempty"`
 	CreatedAt       time.Time       `json:"created_at"`
 	DisplayName     string          `json:"display_name"`
+	AvatarURL       *string         `json:"avatar_url,omitempty"`
 	Sex             *string         `json:"sex,omitempty"`
 	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
 	HeightCM        *float64        `json:"height_cm,omitempty"`
@@ -368,6 +370,7 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		    u.email_verified_at,
 		    u.created_at,
 		    p.display_name,
+		    p.avatar_url,
 		    p.sex,
 		    to_char(p.date_of_birth, 'YYYY-MM-DD'),
 		    p.height_cm::float8,
@@ -391,6 +394,7 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		&me.EmailVerifiedAt,
 		&me.CreatedAt,
 		&me.DisplayName,
+		&me.AvatarURL,
 		&me.Sex,
 		&me.DateOfBirth,
 		&me.HeightCM,

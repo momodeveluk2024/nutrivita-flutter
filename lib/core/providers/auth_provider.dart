@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
@@ -123,6 +124,24 @@ class AuthProvider extends ChangeNotifier {
           'pregnancy_status': pregnancyStatus,
         }),
       );
+      _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
+    });
+  }
+
+  Future<void> uploadAvatarBytes({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    await _runAuthAction(() async {
+      final form = FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          bytes,
+          filename: filename.trim().isEmpty ? 'avatar.jpg' : filename.trim(),
+          contentType: DioMediaType.parse(contentType),
+        ),
+      });
+      final response = await _api.postMultipart(ApiEndpoints.meAvatar, form);
       _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
     });
   }

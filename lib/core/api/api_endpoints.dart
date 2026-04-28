@@ -23,6 +23,7 @@ class ApiEndpoints {
   static const verifyEmail = '/auth/verify-email';
   static const me = '/me';
   static const meProfile = '/me/profile';
+  static const meAvatar = '/me/avatar';
   static const mePreferences = '/me/preferences';
   static const streak = '/me/streak';
   static const foods = '/foods';
@@ -37,6 +38,20 @@ class ApiEndpoints {
   static String log(String id) => '/logs/$id';
   static String favorite(String id) => '/favorites/$id';
   static String reminder(String id) => '/reminders/$id';
+
+  static String mediaUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || Uri.tryParse(trimmed)?.hasScheme == true) {
+      return trimmed;
+    }
+    final base = Uri.parse(baseUrl);
+    final origin = Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+    );
+    return origin.resolve(trimmed).toString();
+  }
 
   static String _withoutTrailingSlash(String value) {
     return value.endsWith('/') ? value.substring(0, value.length - 1) : value;

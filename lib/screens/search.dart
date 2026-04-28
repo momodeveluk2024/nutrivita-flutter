@@ -267,44 +267,12 @@ class _NutrientResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: NVCard(
-        padding: const EdgeInsets.all(12),
+      child: NutrientCard(
+        nutrient: nutrient,
+        compact: true,
         onTap: () => context.push('/app/vitamin/${nutrient.code}'),
-        child: Row(
-          children: [
-            NutrientPill(
-              code: nutrient.code,
-              label: nutrient.name,
-              compact: true,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    nutrient.name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: c.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${nutrient.group} - ${nutrient.targetLabel}',
-                    style: TextStyle(fontSize: 12, color: c.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, size: 18, color: c.textMuted),
-          ],
-        ),
       ),
     );
   }

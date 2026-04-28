@@ -66,6 +66,16 @@ class ApiClient {
     return _guard(() => dio.post<dynamic>(path, data: data));
   }
 
+  Future<Response<dynamic>> postMultipart(String path, FormData data) {
+    return _guard(
+      () => dio.post<dynamic>(
+        path,
+        data: data,
+        options: Options(contentType: 'multipart/form-data'),
+      ),
+    );
+  }
+
   Future<Response<dynamic>> put(String path, {Object? data}) {
     return _guard(() => dio.put<dynamic>(path, data: data));
   }

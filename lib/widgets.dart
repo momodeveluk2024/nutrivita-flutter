@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'core/api/api_endpoints.dart';
+import 'core/models/nutrient_reference.dart';
 import 'core/models/visual_catalog.dart';
 import 'theme.dart';
 
@@ -156,6 +158,113 @@ class FoodPhoto extends StatelessWidget {
   }
 }
 
+class UserAvatar extends StatelessWidget {
+  const UserAvatar({
+    super.key,
+    required this.displayName,
+    this.avatarUrl,
+    this.size = 72,
+    this.editable = false,
+    this.onTap,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final double size;
+  final bool editable;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final url = avatarUrl?.trim() ?? '';
+    final content = ClipOval(
+      child: Container(
+        width: size,
+        height: size,
+        color: dark ? NV.accent.withValues(alpha: 0.24) : NV.accentSoft,
+        alignment: Alignment.center,
+        child: url.isEmpty
+            ? Text(
+                _initialsFor(displayName, fallback: '?'),
+                style: TextStyle(
+                  color: dark ? NV.textDark : NV.accent,
+                  fontSize: size * 0.32,
+                  fontWeight: FontWeight.w800,
+                ),
+              )
+            : Image.network(
+                ApiEndpoints.mediaUrl(url),
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Text(
+                  _initialsFor(displayName, fallback: '?'),
+                  style: TextStyle(
+                    color: dark ? NV.textDark : NV.accent,
+                    fontSize: size * 0.32,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+      ),
+    );
+
+    final avatar = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: c.surface, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.35 : 0.10),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: content,
+        ),
+        if (editable)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: size * 0.34,
+              height: size * 0.34,
+              decoration: BoxDecoration(
+                color: NV.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: c.surface, width: 2),
+              ),
+              child: Icon(
+                Icons.photo_camera_outlined,
+                color: Colors.white,
+                size: size * 0.17,
+              ),
+            ),
+          ),
+      ],
+    );
+
+    if (onTap == null) return avatar;
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: avatar,
+      ),
+    );
+  }
+}
+
 class VitaminChip extends StatelessWidget {
   final String code;
   final double size;
@@ -244,6 +353,123 @@ class NutrientPill extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class NutrientCard extends StatelessWidget {
+  const NutrientCard({
+    super.key,
+    required this.nutrient,
+    this.onTap,
+    this.trailing,
+    this.compact = false,
+  });
+
+  final NutrientReference nutrient;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final hue = vitaminColors[nutrient.code] ?? vitaminColors['D']!;
+    final visual = nutrientVisualFor(nutrient.code);
+    final bg = dark ? hue.fill.withValues(alpha: 0.18) : hue.bg;
+    return NVCard(
+      onTap: onTap,
+      radius: compact ? 16 : 18,
+      padding: EdgeInsets.all(compact ? 12 : 14),
+      child: Row(
+        children: [
+          Container(
+            width: compact ? 48 : 58,
+            height: compact ? 48 : 58,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(compact ? 15 : 18),
+              border: Border.all(color: hue.fill.withValues(alpha: 0.12)),
+            ),
+            child: Icon(visual.icon, size: compact ? 22 : 26, color: hue.fill),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      nutrient.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 14 : 16,
+                        fontWeight: FontWeight.w800,
+                        color: c.text,
+                      ),
+                    ),
+                    _NutrientMetaChip(label: nutrient.group, color: hue.fill),
+                    if (nutrient.dailyTarget > 0)
+                      _NutrientMetaChip(
+                        label: nutrient.targetLabel,
+                        color: c.textMuted,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  nutrient.summary,
+                  maxLines: compact ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 12 : 13,
+                    height: 1.35,
+                    color: c.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          trailing ??
+              (onTap == null
+                  ? const SizedBox.shrink()
+                  : Icon(Icons.chevron_right, size: 20, color: c.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _NutrientMetaChip extends StatelessWidget {
+  const _NutrientMetaChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: dark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -933,4 +1159,14 @@ class SectionLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+String _initialsFor(String value, {String fallback = 'NV'}) {
+  final words = value
+      .split(RegExp(r'[^A-Za-z0-9]+'))
+      .where((word) => word.isNotEmpty)
+      .take(2)
+      .toList();
+  if (words.isEmpty) return fallback;
+  return words.map((word) => word[0]).join().toUpperCase();
 }

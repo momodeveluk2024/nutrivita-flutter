@@ -25,3 +25,24 @@ func TestMePreferencesMarshalAsJSONObject(t *testing.T) {
 		t.Fatalf("appearance = %#v, want dark", preferences["appearance"])
 	}
 }
+
+func TestMeAvatarURLMarshal(t *testing.T) {
+	avatarURL := "/uploads/avatars/user/avatar.png"
+	me := Me{
+		AvatarURL:   &avatarURL,
+		Preferences: json.RawMessage(`{}`),
+	}
+
+	payload, err := json.Marshal(me)
+	if err != nil {
+		t.Fatalf("marshal me: %v", err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("unmarshal me: %v", err)
+	}
+	if decoded["avatar_url"] != avatarURL {
+		t.Fatalf("avatar_url = %#v, want %q", decoded["avatar_url"], avatarURL)
+	}
+}

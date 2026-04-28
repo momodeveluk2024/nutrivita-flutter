@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/models/food.dart';
 import '../core/models/nutrient_reference.dart';
+import '../core/models/visual_catalog.dart';
 import '../core/providers/food_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -63,27 +64,8 @@ class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  NutrientArtwork(code: _nutrient.code, name: _nutrient.name),
-                  const SizedBox(height: 12),
-                  Text(
-                    _nutrient.name,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.4,
-                      color: c.text,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${_nutrient.group} - ${_nutrient.summary}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: c.textMuted,
-                      height: 1.35,
-                    ),
-                  ),
+                  const SizedBox(height: 14),
+                  _VitaminHero(nutrient: _nutrient, hue: hue),
                 ],
               ),
             ),
@@ -107,6 +89,113 @@ class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VitaminHero extends StatelessWidget {
+  const _VitaminHero({required this.nutrient, required this.hue});
+
+  final NutrientReference nutrient;
+  final VitaminHue hue;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final visual = nutrientVisualFor(nutrient.code);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: c.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.28 : 0.07),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -18,
+            top: -22,
+            child: Icon(
+              visual.icon,
+              size: 120,
+              color: hue.fill.withValues(alpha: dark ? 0.10 : 0.08),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              VitaminChip(code: nutrient.code, size: 58),
+              const SizedBox(height: 16),
+              Text(
+                nutrient.name,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: c.text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                nutrient.summary,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: c.textMuted,
+                  height: 1.42,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  NutrientPill(
+                    code: nutrient.code,
+                    label: nutrient.group,
+                    compact: true,
+                  ),
+                  if (nutrient.dailyTarget > 0)
+                    _HeroMetric(label: nutrient.targetLabel, color: hue.fill),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: dark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -278,89 +367,15 @@ class _TopSources extends StatelessWidget {
                 ),
               );
             }
-            return NVCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: List.generate(foods.length, (i) {
-                  final food = foods[i];
-                  final pct = (food.driPercent ?? 0) / 100;
-                  final isLast = i == foods.length - 1;
-                  return InkWell(
-                    onTap: () => context.push('/app/food/${food.id}'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        border: isLast
-                            ? null
-                            : Border(bottom: BorderSide(color: c.border)),
-                      ),
-                      child: Row(
-                        children: [
-                          FoodPhoto(
-                            label: food.name,
-                            imageUrl: food.imageUrl,
-                            height: 42,
-                            width: 42,
-                            radius: 10,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  food.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: c.text,
-                                  ),
-                                ),
-                                Text(
-                                  food.category,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: c.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 72,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                BarProgress(
-                                  pct: pct.clamp(0.0, 1.0),
-                                  color: hue.fill,
-                                  height: 5,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  food.driPercent == null
-                                      ? '-'
-                                      : '${food.driPercent!.round()}%',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: c.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+            return Column(
+              children: foods
+                  .map(
+                    (food) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _SourceFoodCard(food: food, hue: hue),
                     ),
-                  );
-                }),
-              ),
+                  )
+                  .toList(),
             );
           },
         ),
@@ -373,6 +388,73 @@ class _TopSources extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SourceFoodCard extends StatelessWidget {
+  const _SourceFoodCard({required this.food, required this.hue});
+
+  final FoodSummary food;
+  final VitaminHue hue;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final pct = (food.driPercent ?? 0) / 100;
+    return NVCard(
+      onTap: () => context.push('/app/food/${food.id}'),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          FoodPhoto(
+            label: food.name,
+            imageUrl: food.imageUrl,
+            height: 54,
+            width: 54,
+            radius: 14,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  food.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: c.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  food.category,
+                  style: TextStyle(fontSize: 12, color: c.textMuted),
+                ),
+                const SizedBox(height: 8),
+                BarProgress(
+                  pct: pct.clamp(0.0, 1.0),
+                  color: hue.fill,
+                  height: 6,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            food.driPercent == null ? '-' : '${food.driPercent!.round()}%',
+            style: TextStyle(
+              color: hue.fill,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

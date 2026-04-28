@@ -134,6 +134,7 @@ func (a *App) Routes() http.Handler {
 			r.Post("/auth/logout", a.handleLogout)
 			r.Get("/me", a.handleMe)
 			r.Patch("/me/profile", a.handleUpdateProfile)
+			r.Post("/me/avatar", a.handleUpdateAvatar)
 			r.Patch("/me/preferences", a.handleUpdatePreferences)
 			r.Get("/me/streak", a.handleStreak)
 			r.Post("/foods", a.handleCreateFood)

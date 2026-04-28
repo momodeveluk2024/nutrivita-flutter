@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/reminder.dart';
@@ -102,6 +103,7 @@ class _ProfileBodyScreenState extends State<ProfileBodyScreen> {
   String? _activity;
   String? _pregnancy;
   var _saving = false;
+  var _avatarUploading = false;
 
   @override
   void initState() {
@@ -128,9 +130,18 @@ class _ProfileBodyScreenState extends State<ProfileBodyScreen> {
   @override
   Widget build(BuildContext context) {
     return _SettingsScaffold(
-      title: 'Body details',
+      title: 'Personal details',
       child: ListView(
         children: [
+          _AvatarEditor(
+            displayName: _name.text.trim().isEmpty
+                ? 'Nutrimate user'
+                : _name.text.trim(),
+            avatarUrl: context.watch<AuthProvider>().user?.avatarUrl,
+            uploading: _avatarUploading,
+            onTap: _pickAvatar,
+          ),
+          const SizedBox(height: 18),
           _TextField(label: 'Display name', controller: _name),
           _ChoiceField(
             label: 'Sex',
@@ -201,6 +212,29 @@ class _ProfileBodyScreenState extends State<ProfileBodyScreen> {
       if (mounted) _showError(context, e);
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    final auth = context.read<AuthProvider>();
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 86,
+      maxWidth: 1200,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _avatarUploading = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      await auth.uploadAvatarBytes(
+        bytes: bytes,
+        filename: picked.name,
+        contentType: picked.mimeType ?? _contentTypeForFilename(picked.name),
+      );
+    } catch (e) {
+      if (mounted) _showError(context, e);
+    } finally {
+      if (mounted) setState(() => _avatarUploading = false);
     }
   }
 }
@@ -512,6 +546,79 @@ class _SettingsScaffold extends StatelessWidget {
   }
 }
 
+class _AvatarEditor extends StatelessWidget {
+  const _AvatarEditor({
+    required this.displayName,
+    required this.avatarUrl,
+    required this.uploading,
+    required this.onTap,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final bool uploading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return NVCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          UserAvatar(
+            displayName: displayName,
+            avatarUrl: avatarUrl,
+            size: 70,
+            editable: !uploading,
+            onTap: uploading ? null : onTap,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profile photo',
+                  style: TextStyle(
+                    color: c.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  uploading
+                      ? 'Uploading...'
+                      : 'Choose an image from this device.',
+                  style: TextStyle(
+                    color: c.textMuted,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (uploading)
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            IconButton(
+              tooltip: 'Upload profile photo',
+              onPressed: onTap,
+              icon: const Icon(Icons.upload_outlined),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReminderTile extends StatelessWidget {
   const _ReminderTile({required this.reminder});
 
@@ -730,4 +837,12 @@ String _number(double? value) {
   return value == value.roundToDouble()
       ? value.toStringAsFixed(0)
       : value.toString();
+}
+
+String _contentTypeForFilename(String filename) {
+  final lower = filename.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
 }

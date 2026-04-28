@@ -9,8 +9,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/db"
+	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/filestore"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/httpx"
 )
+
+const maxAvatarUploadBytes = 8 << 20
 
 type updateProfileRequest struct {
 	DisplayName     *string  `json:"display_name" validate:"omitempty,min=1,max=120"`
@@ -90,6 +93,42 @@ func (a *App) handleUpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		writeProfileUpdateError(a, w, "update preferences", err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, me)
+}
+
+func (a *App) handleUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	claims := authFromContext(r.Context())
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarUploadBytes)
+	if err := r.ParseMultipartForm(maxAvatarUploadBytes); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid multipart upload")
+		return
+	}
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "image file is required")
+		return
+	}
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		httpx.WriteError(w, http.StatusUnsupportedMediaType, "image upload must be an image")
+		return
+	}
+	obj, err := a.storage.Put(r.Context(), filestore.AvatarKey(claims.UserID, header.Filename), contentType, file)
+	if err != nil {
+		a.logger.Error("upload avatar", "error", err)
+		httpx.WriteError(w, http.StatusInternalServerError, "could not upload avatar")
+		return
+	}
+	me, err := a.store.UpdateAvatar(r.Context(), db.UpdateAvatarParams{
+		UserID:    claims.UserID,
+		AvatarURL: obj.URL,
+	})
+	if err != nil {
+		writeProfileUpdateError(a, w, "update avatar", err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, me)

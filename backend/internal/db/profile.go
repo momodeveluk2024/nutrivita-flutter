@@ -28,6 +28,11 @@ type UpdatePreferencesParams struct {
 	Preferences    []byte
 }
 
+type UpdateAvatarParams struct {
+	UserID    uuid.UUID
+	AvatarURL string
+}
+
 func (s *Store) UpdateProfile(ctx context.Context, params UpdateProfileParams) (Me, error) {
 	_, err := s.pool.Exec(ctx, `
 		UPDATE user_profiles
@@ -60,6 +65,19 @@ func (s *Store) UpdatePreferences(ctx context.Context, params UpdatePreferencesP
 		    updated_at = now()
 		WHERE user_id = $1
 	`, params.UserID, params.Units, params.Locale, params.Timezone, params.DietaryPattern, params.Allergens != nil, params.Allergens, params.Goals != nil, params.Goals, params.Preferences != nil, params.Preferences)
+	if err != nil {
+		return Me{}, err
+	}
+	return s.GetMe(ctx, params.UserID)
+}
+
+func (s *Store) UpdateAvatar(ctx context.Context, params UpdateAvatarParams) (Me, error) {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE user_profiles
+		SET avatar_url = $2,
+		    updated_at = now()
+		WHERE user_id = $1
+	`, params.UserID, params.AvatarURL)
 	if err != nil {
 		return Me{}, err
 	}

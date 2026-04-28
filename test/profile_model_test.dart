@@ -8,6 +8,7 @@ void main() {
       'id': '019dc1d3-dd22-7cea-85d3-7f8946adde90',
       'email': 'ahmed@gmail.com',
       'display_name': 'ahmed',
+      'avatar_url': '/uploads/avatars/ahmed/profile.png',
       'email_verified_at': null,
       'sex': 'female',
       'date_of_birth': '1998-04-25',
@@ -25,6 +26,7 @@ void main() {
     });
 
     expect(user.sex, 'female');
+    expect(user.avatarUrl, '/uploads/avatars/ahmed/profile.png');
     expect(user.dateOfBirth, '1998-04-25');
     expect(user.heightCm, 165.0);
     expect(user.weightKg, 62.5);
