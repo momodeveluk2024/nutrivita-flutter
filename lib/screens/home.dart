@@ -317,24 +317,14 @@ class _RecommendationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     final hasRecommendations = recommendations.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-          child: Text(
-            hasRecommendations
-                ? 'Personal recommendations'
-                : 'Starter recommendations',
-            style: TextStyle(
-              color: c.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+        _SectionEyebrow(
+          hasRecommendations
+              ? 'PERSONAL · RECOMMENDATIONS'
+              : 'STARTER · RECOMMENDATIONS',
         ),
         if (hasRecommendations)
           ...recommendations.take(2).map((rec) => _RecommendationTile(rec: rec))
@@ -511,8 +501,6 @@ class _NutrientGapsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     final gaps = _gaps(totals);
     final starters = [
       'B12',
@@ -523,30 +511,9 @@ class _NutrientGapsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Top nutrient gaps',
-                  style: TextStyle(
-                    color: c.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Text(
-                gaps.isEmpty ? 'starter' : 'today',
-                style: TextStyle(
-                  color: c.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+        _SectionEyebrow(
+          'TOP · NUTRIENT GAPS',
+          trailing: gaps.isEmpty ? 'STARTER' : 'TODAY',
         ),
         ...nutrients
             .take(3)
@@ -624,15 +591,7 @@ class _RecentMealsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Recent meals',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: c.text,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const _SectionEyebrow('RECENT · MEALS'),
         if (logs.isEmpty)
           NVCard(
             padding: const EdgeInsets.all(16),
@@ -819,6 +778,59 @@ class _QuickAction extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Modernized section header used across home: small uppercase eyebrow,
+/// hairline divider stretching to the right, optional badge on the far
+/// right (e.g. "TODAY"). Replaces the old big "Recent meals" / "Top
+/// nutrient gaps" / "Personal recommendations" bold sans labels.
+class _SectionEyebrow extends StatelessWidget {
+  const _SectionEyebrow(this.label, {this.trailing});
+
+  final String label;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1.8,
+              fontWeight: FontWeight.w800,
+              color: c.textMuted,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: c.border.withValues(alpha: 0.6),
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              trailing!,
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w700,
+                color: c.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
