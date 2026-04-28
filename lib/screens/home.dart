@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontSize: 32,
                                 letterSpacing: -0.6,
                                 height: 1.05,
-                                color: c.text,
+                                color: NV.accent,
                               ),
                             ),
                           ],
