@@ -208,16 +208,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 return AnimatedContainer(
                                   duration: const Duration(milliseconds: 220),
                                   curve: Curves.easeOutCubic,
-                                  width: active ? 26 : 7,
-                                  height: 7,
+                                  width: active ? 24 : 4,
+                                  height: 4,
                                   margin: const EdgeInsets.only(right: 6),
                                   decoration: BoxDecoration(
                                     color: active
-                                        ? NV.accent
+                                        ? c.text
                                         : (dark
                                               ? NV.borderDark
-                                              : const Color(0xFFD5DACD)),
-                                    borderRadius: BorderRadius.circular(8),
+                                              : NV.borderStrong),
+                                    borderRadius: BorderRadius.circular(99),
                                   ),
                                 );
                               }),
@@ -225,11 +225,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             NVPrimaryButton(
                               label: _slide == _slides.length - 1
                                   ? 'Start'
-                                  : 'Next',
-                              width: 140,
-                              height: 52,
-                              radius: 20,
-                              trailingIcon: Icons.chevron_right,
+                                  : 'Continue',
+                              width: 150,
+                              height: 56,
+                              trailingIcon: Icons.arrow_forward,
                               onPressed: _next,
                             ),
                           ],

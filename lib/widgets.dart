@@ -1035,6 +1035,10 @@ class NVCard extends StatelessWidget {
 }
 
 /// Primary CTA button.
+/// Primary CTA. Per Nutrimate Design System v2 the default is **ink**:
+/// dark warm-near-black background (`--text` = `#14110E`) with light
+/// text-on-ink. Set `accent: true` to flip to amber (used inside dark
+/// recommendation cards or single-callout moments).
 class NVPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -1043,6 +1047,8 @@ class NVPrimaryButton extends StatelessWidget {
   final double height;
   final double? width;
   final double radius;
+  final bool accent;
+
   const NVPrimaryButton({
     super.key,
     required this.label,
@@ -1051,27 +1057,30 @@ class NVPrimaryButton extends StatelessWidget {
     this.leadingIcon,
     this.height = 54,
     this.width,
-    this.radius = 28,
+    this.radius = 999,
+    this.accent = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = accent ? NV.accent : NV.surfaceInk;
+    final fg = accent ? Colors.white : const Color(0xFFFAF4EC);
     return SizedBox(
       height: height,
       width: width ?? double.infinity,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: NV.accent,
-          foregroundColor: Colors.white,
+          backgroundColor: bg,
+          foregroundColor: fg,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radius),
           ),
           textStyle: const TextStyle(
             fontSize: 15,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.1,
           ),
         ),
         child: Row(

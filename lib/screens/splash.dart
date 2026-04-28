@@ -191,22 +191,40 @@ class _SplashScreenState extends State<SplashScreen> {
                       children: [
                         NVPrimaryButton(
                           label: 'Get started',
-                          radius: 22,
+                          height: 56,
+                          trailingIcon: Icons.arrow_forward,
                           onPressed: () => context.go('/onboarding'),
                         ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 50,
+                        const SizedBox(height: 14),
+                        Center(
                           child: TextButton(
                             onPressed: () => context.go('/sign-in'),
                             style: TextButton.styleFrom(
                               foregroundColor: dark ? NV.textDark : NV.text,
-                              textStyle: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
                             ),
-                            child: const Text('I already have an account'),
+                            child: RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: dark ? NV.textMutedDark : NV.textMuted,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                children: [
+                                  const TextSpan(text: 'Already have an account?  '),
+                                  TextSpan(
+                                    text: 'Sign in',
+                                    style: TextStyle(
+                                      color: dark ? NV.textDark : NV.text,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         Text(
