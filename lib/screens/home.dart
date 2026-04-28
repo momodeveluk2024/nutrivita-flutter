@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food_log.dart';
@@ -51,20 +52,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${_weekday(now)}, ${_month(now)} ${now.day}',
+                        '${_weekday(now).toUpperCase()} · ${_month(now).toUpperCase()} ${now.day}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 11,
                           color: c.textMuted,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.8,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Morning, ${user?.displayName.split(' ').first ?? 'friend'}',
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.w800,
-                          color: c.text,
+                      const SizedBox(height: 6),
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: c.text,
+                            letterSpacing: -0.6,
+                            height: 1.05,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Good '),
+                            TextSpan(
+                              text: _timeOfDayWord(now),
+                              style: GoogleFonts.fraunces(
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 28,
+                                letterSpacing: -0.6,
+                                height: 1.05,
+                                color: c.text,
+                              ),
+                            ),
+                            TextSpan(
+                              text:
+                                  ', ${user?.displayName.split(' ').first ?? 'friend'}.',
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -113,6 +136,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  String _timeOfDayWord(DateTime date) {
+    final h = date.hour;
+    if (h < 5) return 'night';
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    if (h < 21) return 'evening';
+    return 'night';
   }
 
   String _weekday(DateTime date) => const [

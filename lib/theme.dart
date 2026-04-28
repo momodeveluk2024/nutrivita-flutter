@@ -6,14 +6,14 @@ class NV {
   static const accentSoft = Color(0xFFE6F1E9);
   static const accentDeep = Color(0xFF1E5A34);
 
-  // Neutrals (warm, clinical)
-  static const bg = Color(0xFFF6F7F3);
+  // Neutrals (clean off-white, no green tint)
+  static const bg = Color(0xFFFBFAF6);
   static const bgDark = Color(0xFF0F1512);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceDark = Color(0xFF18201C);
-  static const surfaceMuted = Color(0xFFEEF1EA);
+  static const surfaceMuted = Color(0xFFF2F0EA);
   static const surfaceMutedDark = Color(0xFF1F2823);
-  static const border = Color(0xFFE5E8DF);
+  static const border = Color(0xFFE8E6DE);
   static const borderDark = Color(0xFF2A332D);
 
   // Text
