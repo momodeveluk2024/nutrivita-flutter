@@ -213,19 +213,22 @@ class _NutrientGroupPickers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: _NutrientGroup.values.map((group) {
-        final last = group == _NutrientGroup.values.last;
-        return Expanded(
-          child: Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      clipBehavior: Clip.none,
+      child: Row(
+        children: _NutrientGroup.values.map((group) {
+          final last = group == _NutrientGroup.values.last;
+          return Padding(
             padding: EdgeInsets.only(right: last ? 0 : 8),
             child: _NutrientGroupPicker(
               group: group,
               onTap: () => onSelected(group),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -240,112 +243,49 @@ class _NutrientGroupPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final cardRadius = BorderRadius.circular(24);
-    final base = dark ? c.surfaceMuted : c.surface;
-    final glow = dark
-        ? group.accent.withValues(alpha: 0.22)
-        : group.soft.withValues(alpha: 0.88);
-
+    
     return Material(
-      color: Colors.transparent,
-      borderRadius: cardRadius,
+      color: dark ? c.surfaceMuted : Colors.white,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: dark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+        ),
+      ),
+      elevation: dark ? 0 : 2,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       child: InkWell(
         onTap: onTap,
-        borderRadius: cardRadius,
-        child: Container(
-          height: 98,
-          padding: const EdgeInsets.fromLTRB(11, 11, 9, 10),
-          decoration: BoxDecoration(
-            borderRadius: cardRadius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                glow,
-                base,
-                dark ? group.deep.withValues(alpha: 0.18) : Colors.white,
-              ],
-              stops: const [0, 0.58, 1],
-            ),
-            border: Border.all(
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.07)
-                  : Colors.white.withValues(alpha: 0.92),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: dark
-                    ? Colors.black.withValues(alpha: 0.30)
-                    : group.accent.withValues(alpha: 0.10),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.03)
-                    : Colors.white.withValues(alpha: 0.90),
-                blurRadius: 1,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.white.withValues(alpha: 0.86),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: group.accent.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    child: Icon(group.icon, size: 17, color: group.accent),
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white.withValues(alpha: 0.68),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: c.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
+              Icon(group.icon, size: 16, color: group.accent),
+              const SizedBox(width: 8),
               Text(
                 group.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                   color: c.text,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                group.countLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: c.textMuted,
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: group.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${group.nutrients.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: group.accent,
+                  ),
                 ),
               ),
             ],
@@ -365,185 +305,104 @@ class _NutrientBrowserSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.76;
-    final count = group.nutrients.length;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(34),
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.07)
-                : Colors.white.withValues(alpha: 0.92),
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: dark ? 0.52 : 0.20),
-              blurRadius: 42,
-              offset: const Offset(0, 22),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 46,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.18)
-                      : const Color(0xFFD7DDD4),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(16),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 16),
+              width: 40,
+              height: 5,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    group.deep,
-                    Color.lerp(group.deep, group.accent, 0.50)!,
-                    dark
-                        ? c.surfaceMuted
-                        : Color.lerp(group.soft, Colors.white, 0.20)!,
-                  ],
-                  stops: const [0, 0.58, 1],
-                ),
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.09)
-                      : Colors.white.withValues(alpha: 0.70),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: group.accent.withValues(alpha: dark ? 0.18 : 0.16),
-                    blurRadius: 28,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
+                color: dark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -24,
-                    top: -28,
-                    child: Icon(
-                      group.icon,
-                      size: 108,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
+            ),
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: group.accent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
-                  Row(
+                  child: Icon(group.icon, size: 24, color: group.accent),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
-                          ),
-                        ),
-                        child: Icon(group.icon, size: 27, color: Colors.white),
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              group.label.toUpperCase(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1,
-                                color: Colors.white.withValues(alpha: 0.68),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              group.sheetTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 23,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.4,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              group.sheetSubtitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                height: 1.25,
-                                color: Colors.white.withValues(alpha: 0.76),
-                              ),
-                            ),
-                          ],
+                      Text(
+                        group.sheetTitle,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: c.text,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
-                          ),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        group.sheetSubtitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: c.textMuted,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  _NutrientSheetSection(
-                    title: group.label,
-                    nutrients: group.nutrients,
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Divider
+          Divider(
+            height: 1, 
+            thickness: 1, 
+            color: dark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05)
+          ),
+          
+          // List
+          Flexible(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              physics: const BouncingScrollPhysics(),
+              shrinkWrap: true,
+              children: [
+                _NutrientSheetSection(
+                  title: group.label,
+                  nutrients: group.nutrients,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -605,81 +464,53 @@ class _LuxuryNutrientChip extends StatelessWidget {
 
     return Material(
       key: ValueKey('luxury-nutrient-chip-${nutrient.code}'),
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
+      color: dark ? visual.accent.withValues(alpha: 0.15) : visual.accent.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
           height: 56,
-          padding: const EdgeInsets.fromLTRB(8, 8, 10, 8),
+          padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
           decoration: BoxDecoration(
-            color: dark
-                ? visual.accent.withValues(alpha: 0.15)
-                : visual.accent.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: visual.accent.withValues(alpha: dark ? 0.18 : 0.13),
+              color: visual.accent.withValues(alpha: dark ? 0.2 : 0.1),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: dark
-                    ? Colors.black.withValues(alpha: 0.16)
-                    : visual.accent.withValues(alpha: 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ],
           ),
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.white.withValues(alpha: 0.90),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: dark ? 0.05 : 0.76),
-                  ),
+                  color: dark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(visual.icon, size: 18, color: visual.accent),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   nutrient.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
                     color: c.text,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                constraints: const BoxConstraints(minWidth: 28),
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                decoration: BoxDecoration(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.07)
-                      : Colors.white.withValues(alpha: 0.62),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  nutrient.code,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: visual.accent,
-                  ),
+              Text(
+                nutrient.code,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: visual.accent,
                 ),
               ),
             ],

@@ -30,9 +30,14 @@ class FoodProvider extends ChangeNotifier {
         limit: limit,
       ),
     );
-    return (response.data['foods'] as List? ?? const [])
+    
+    final results = (response.data['foods'] as List? ?? const [])
         .map((v) => FoodSummary.fromJson(Map<String, dynamic>.from(v as Map)))
         .toList();
+        
+    // Filter out duplicates by name
+    final seen = <String>{};
+    return results.where((f) => seen.add(f.name.toLowerCase())).toList();
   }
 
   Future<List<FoodSummary>> searchFoods({

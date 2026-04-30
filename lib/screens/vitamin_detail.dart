@@ -110,6 +110,14 @@ class _VitaminHero extends StatelessWidget {
         color: c.surface,
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: c.border),
+        image: DecorationImage(
+          image: NetworkImage(visual.imageUrl),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(
+            Colors.black.withValues(alpha: 0.70),
+            BlendMode.darken,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: dark ? 0.28 : 0.07),
@@ -126,7 +134,7 @@ class _VitaminHero extends StatelessWidget {
             child: Icon(
               visual.icon,
               size: 120,
-              color: hue.fill.withValues(alpha: dark ? 0.10 : 0.08),
+              color: hue.fill.withValues(alpha: 0.15),
             ),
           ),
           Column(
@@ -136,10 +144,10 @@ class _VitaminHero extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 nutrient.name,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
-                  color: c.text,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
@@ -147,7 +155,7 @@ class _VitaminHero extends StatelessWidget {
                 nutrient.summary,
                 style: TextStyle(
                   fontSize: 14,
-                  color: c.textMuted,
+                  color: Colors.white.withValues(alpha: 0.85),
                   height: 1.42,
                 ),
               ),
@@ -409,6 +417,7 @@ class _SourceFoodCard extends StatelessWidget {
           FoodPhoto(
             label: food.name,
             imageUrl: food.imageUrl,
+            category: food.category,
             height: 54,
             width: 54,
             radius: 14,

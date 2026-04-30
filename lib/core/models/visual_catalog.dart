@@ -19,11 +19,13 @@ class CategoryVisual {
 class NutrientVisual {
   const NutrientVisual({
     required this.label,
+    required this.imageUrl,
     required this.icon,
     required this.accent,
   });
 
   final String label;
+  final String imageUrl;
   final IconData icon;
   final Color accent;
 }
@@ -166,6 +168,18 @@ NutrientVisual nutrientVisualFor(String code) {
   final hue = vitaminColors[code] ?? vitaminColors['C']!;
   return NutrientVisual(
     label: code,
+    imageUrl: switch (code) {
+      'Protein' => 'https://images.unsplash.com/photo-1555243896-c709bfa0b564?auto=format&fit=crop&w=900&q=80',
+      'Fiber' => 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80',
+      'Carbs' => 'https://images.unsplash.com/photo-1596422846543-74c6fc0e28f1?auto=format&fit=crop&w=900&q=80',
+      'Fat' => 'https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=80',
+      'Ca' => 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=900&q=80',
+      'Fe' => 'https://images.unsplash.com/photo-1603048297172-c92544798d5e?auto=format&fit=crop&w=900&q=80',
+      'A' => 'https://images.unsplash.com/photo-1447175008436-054170c2e979?auto=format&fit=crop&w=900&q=80',
+      'C' => 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&w=900&q=80',
+      'D' => 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80',
+      _ => 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80',
+    },
     icon: switch (code) {
       'A' => Icons.visibility_outlined,
       'D' => Icons.wb_sunny_outlined,

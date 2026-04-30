@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food.dart';
@@ -32,8 +33,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
+    final c = NVColors.of(context);
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -48,7 +48,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           if (snapshot.hasError || !snapshot.hasData) {
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(NVSpace.x5),
                 child: NVCard(
                   padding: const EdgeInsets.all(18),
                   child: Text(
@@ -59,8 +59,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               ),
             );
           }
-          final food = snapshot.data!;
-          return _FoodDetailBody(food: food);
+          return _FoodDetailBody(food: snapshot.data!);
         },
       ),
     );
@@ -74,15 +73,16 @@ class _FoodDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
+    final c = NVColors.of(context);
     final provider = context.watch<FoodProvider>();
     final isFavorite = provider.isFavorite(food.id);
     final isReferenceProfile = food.source.contains('percent Daily Value');
-    final canLog = food.breakdown.any((nutrient) =>
-        nutrient.amountPer100G > 0 || (nutrient.driPercent ?? 0) > 0);
+    final canLog = food.breakdown.any(
+      (n) => n.amountPer100G > 0 || (n.driPercent ?? 0) > 0,
+    );
 
     return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Stack(
@@ -90,21 +90,24 @@ class _FoodDetailBody extends StatelessWidget {
               FoodPhoto(
                 label: food.name,
                 imageUrl: food.imageUrl,
+                category: food.category,
                 height: 320,
                 radius: 0,
                 tone: 'warm',
               ),
               Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.42),
-                      ],
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.18),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.46),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -129,6 +132,7 @@ class _FoodDetailBody extends StatelessWidget {
                       background: Colors.white.withValues(alpha: 0.92),
                       foreground: isFavorite ? NV.accent : NV.text,
                       onTap: () {
+                        HapticFeedback.lightImpact();
                         if (isFavorite) {
                           context.read<FoodProvider>().removeFavorite(food.id);
                         } else {
@@ -149,10 +153,10 @@ class _FoodDetailBody extends StatelessWidget {
                     Text(
                       food.category.toUpperCase(),
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.78),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.88,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -161,9 +165,10 @@ class _FoodDetailBody extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
                         height: 1.08,
+                        letterSpacing: -0.6,
                         color: Colors.white,
                       ),
                     ),
@@ -174,38 +179,31 @@ class _FoodDetailBody extends StatelessWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(NVSpace.x5, NVSpace.x5, NVSpace.x5, NVSpace.x5),
           sliver: SliverList.list(
             children: [
-              Text(
-                food.category.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: c.textMuted,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              NVEyebrow(food.category, color: c.textMuted),
               const SizedBox(height: 4),
               Text(
                 food.name,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
+                  letterSpacing: -0.5,
                   color: c.text,
+                  height: 1.15,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 isReferenceProfile
                     ? food.source
-                    : '${food.source} - ${food.servingSizeG.toStringAsFixed(0)}g serving',
-                style: TextStyle(fontSize: 13, color: c.textMuted),
+                    : '${food.source} · ${food.servingSizeG.toStringAsFixed(0)}g serving',
+                style: TextStyle(fontSize: 13, color: c.textMuted, height: 1.45),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: NVSpace.x4),
               NVCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -224,7 +222,7 @@ class _FoodDetailBody extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: NVSpace.x5),
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 10),
                 child: Text(
@@ -238,62 +236,10 @@ class _FoodDetailBody extends StatelessWidget {
                 ),
               ),
               NVCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 child: Column(
                   children: food.breakdown.map((nutrient) {
-                    final code = nutrient.code;
-                    final pct = (nutrient.driPercent ?? 0) / 100;
-                    final hue = vitaminColors[code] ?? vitaminColors['D']!;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          VitaminChip(code: code, size: 32),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      nutrient.name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: c.text,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      nutrient.driPercent == null
-                                          ? '-'
-                                          : '${nutrient.driPercent!.round()}%',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: pct >= 1
-                                            ? hue.fill
-                                            : c.textMuted,
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures(),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                BarProgress(
-                                  pct: pct.clamp(0.0, 1.0),
-                                  color: hue.fill,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
+                    return _NutrientRow(nutrient: nutrient);
                   }).toList(),
                 ),
               ),
@@ -322,13 +268,16 @@ class _FoodDetailBody extends StatelessWidget {
                     style: TextStyle(fontSize: 11, color: c.textMuted),
                   ),
                 ),
-              const SizedBox(height: 16),
+              const SizedBox(height: NVSpace.x4),
               NVPrimaryButton(
                 label: canLog ? 'Log this food' : 'Reference profile only',
-                leadingIcon: canLog ? Icons.add : Icons.info_outline,
-                radius: 27,
+                leadingIcon: canLog ? Icons.add_rounded : Icons.info_outline_rounded,
+                accent: canLog,
                 onPressed: canLog
-                    ? () => _showLogSheet(context, food)
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        _showLogSheet(context, food);
+                      }
                     : () => ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -350,6 +299,7 @@ class _FoodDetailBody extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (_) => _LogFoodSheet(food: food),
     );
   }
@@ -363,28 +313,71 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
+    final c = NVColors.of(context);
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: c.text,
-          ),
+          style: nvNumber(18, color: c.text, weight: FontWeight.w700),
         ),
-        const SizedBox(height: 2),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 10,
-            color: c.textMuted,
-            letterSpacing: 0.5,
-          ),
-        ),
+        const SizedBox(height: 4),
+        NVEyebrow(label, color: c.textMuted),
       ],
+    );
+  }
+}
+
+class _NutrientRow extends StatelessWidget {
+  const _NutrientRow({required this.nutrient});
+  final FoodNutrient nutrient;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    final code = nutrient.code;
+    final pct = ((nutrient.driPercent ?? 0) / 100).clamp(0.0, 1.0);
+    final hue = vitaminColors[code] ?? vitaminColors['D']!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          VitaminChip(code: code, size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      nutrient.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: c.text,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    Text(
+                      nutrient.driPercent == null
+                          ? '—'
+                          : '${nutrient.driPercent!.round()}%',
+                      style: nvNumber(
+                        13,
+                        color: pct >= 1 ? hue.fill : c.textMuted,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                BarProgress(pct: pct, color: hue.fill, height: 4),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -415,9 +408,9 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Logged ${widget.food.name}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logged ${widget.food.name}')),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -430,29 +423,32 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
+    final c = NVColors.of(context);
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          20 + MediaQuery.of(context).viewInsets.bottom,
+          NVSpace.x5,
+          0,
+          NVSpace.x5,
+          NVSpace.x5 + MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            NVEyebrow('Add to your log', color: c.textMuted),
+            const SizedBox(height: 6),
             Text(
-              'Log ${widget.food.name}',
+              widget.food.name,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 22,
                 fontWeight: FontWeight.w700,
                 color: c.text,
+                letterSpacing: -0.4,
+                height: 1.15,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: NVSpace.x5),
             NVSelectField(
               label: 'Meal',
               value: _mealType,
@@ -465,13 +461,13 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
             Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(NVRadius.field),
                 onTap: _pickDate,
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
                   decoration: BoxDecoration(
                     color: c.surface,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(NVRadius.field),
                     border: Border.all(color: c.border),
                   ),
                   child: Row(
@@ -480,52 +476,60 @@ class _LogFoodSheetState extends State<_LogFoodSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Date',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: c.textMuted,
-                              ),
-                            ),
+                            NVEyebrow('Date', color: c.textMuted),
                             const SizedBox(height: 4),
                             Text(
                               _dateLabel(_loggedOn),
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 color: c.text,
+                                letterSpacing: -0.1,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.calendar_month_outlined,
-                        color: NV.accent,
-                      ),
+                      Icon(Icons.calendar_today_outlined, color: c.textMuted, size: 18),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Serving: ${_servingG.round()}g',
-              style: TextStyle(color: c.text),
+            const SizedBox(height: NVSpace.x5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                NVEyebrow('Serving', color: c.textMuted),
+                Text(
+                  '${_servingG.round()} g',
+                  style: nvNumber(15, color: c.text, weight: FontWeight.w700),
+                ),
+              ],
             ),
-            Slider(
-              value: _servingG,
-              min: 10,
-              max: 500,
-              divisions: 49,
-              label: '${_servingG.round()}g',
-              onChanged: (value) => setState(() => _servingG = value),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: NV.accent,
+                inactiveTrackColor: c.border,
+                thumbColor: NV.accent,
+                overlayColor: NV.accent.withValues(alpha: 0.14),
+                trackHeight: 3,
+              ),
+              child: Slider(
+                value: _servingG,
+                min: 10,
+                max: 500,
+                divisions: 49,
+                label: '${_servingG.round()}g',
+                onChanged: (value) => setState(() => _servingG = value),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: NVSpace.x4),
             NVPrimaryButton(
-              label: _saving ? 'Logging...' : 'Log food',
-              radius: 24,
+              label: _saving ? 'Logging…' : 'Save to log',
+              leadingIcon: _saving ? null : Icons.check_rounded,
+              loading: _saving,
+              accent: true,
               onPressed: _saving ? null : _save,
             ),
           ],

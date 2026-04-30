@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../core/models/visual_catalog.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -16,7 +18,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   static const _heroCategories = ['fruit', 'vegetables', 'seafood'];
-  late final Timer _timer;
+  Timer? _timer;
   int _index = 0;
 
   @override
@@ -30,14 +32,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     final visual = categoryVisualFor(_heroCategories[_index]);
 
     return Scaffold(
@@ -45,8 +45,9 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Photo hero with crossfade
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 760),
+            duration: const Duration(milliseconds: 900),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeOutCubic,
             child: Image.network(
@@ -57,37 +58,43 @@ class _SplashScreenState extends State<SplashScreen> {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               errorBuilder: (context, error, stackTrace) =>
-                  Container(color: dark ? const Color(0xFF08110D) : c.bg),
+                  const ColoredBox(color: Color(0xFF0F1512)),
             ),
           ),
+          // Editorial scrim
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.14),
-                  Colors.black.withValues(alpha: 0.18),
-                  Colors.black.withValues(alpha: 0.80),
+                  Colors.black.withValues(alpha: 0.10),
+                  Colors.black.withValues(alpha: 0.20),
+                  Colors.black.withValues(alpha: 0.85),
                 ],
-                stops: const [0, 0.42, 1],
+                stops: const [0, 0.5, 1],
               ),
             ),
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 26),
+              padding: const EdgeInsets.fromLTRB(
+                NVSpace.x5,
+                NVSpace.x5,
+                NVSpace.x5,
+                NVSpace.x6,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
                       Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(16),
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
                         ),
                         clipBehavior: Clip.antiAlias,
                         padding: const EdgeInsets.all(6),
@@ -96,147 +103,130 @@ class _SplashScreenState extends State<SplashScreen> {
                           fit: BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
+                      const SizedBox(width: 10),
+                      Text(
                         'Nutrimate',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
+                        style: GoogleFonts.fraunces(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const Spacer(),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: Text(
+                              'By Mohammad Alan',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.95),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const Spacer(),
                   Text(
-                    'WELCOME · NUTRIMATE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2.2,
+                    'WELCOME',
+                    style: nvEyebrow(
                       color: Colors.white.withValues(alpha: 0.78),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: 38,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1,
-                        height: 1.04,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.32),
-                            blurRadius: 18,
-                          ),
-                        ],
-                      ),
-                      children: [
-                        const TextSpan(text: 'Find the vitamins\nin every '),
-                        TextSpan(
-                          text: 'bite.',
-                          style: GoogleFonts.instrumentSerif(
-                            fontStyle: FontStyle.italic,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 42,
-                            letterSpacing: -1,
-                            height: 1.04,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.32),
-                                blurRadius: 18,
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: NVSpace.x3),
+                  Text(
+                    'Know what\'s\nactually in\nyour meals.',
+                    style: GoogleFonts.fraunces(
+                      fontSize: 44,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      letterSpacing: -1.4,
+                      height: 1.02,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.30),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: NVSpace.x4),
                   Text(
-                    'Real foods, clear nutrients, daily tracking that feels effortless.',
+                    'Real foods, real nutrients. Daily tracking that quietly does the work for you.',
                     style: TextStyle(
                       fontSize: 15,
-                      height: 1.5,
+                      height: 1.55,
                       color: Colors.white.withValues(alpha: 0.86),
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: dark
-                          ? const Color(0xFF0E1712).withValues(alpha: 0.86)
-                          : Colors.white.withValues(alpha: 0.90),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: Colors.white.withValues(
-                          alpha: dark ? 0.10 : 0.36,
+                  const SizedBox(height: NVSpace.x8),
+                  // Indicator dots
+                  Row(
+                    children: List.generate(_heroCategories.length, (i) {
+                      final active = i == _index;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: AnimatedContainer(
+                          duration: NVMotion.base,
+                          curve: NVMotion.emphasized,
+                          width: active ? 22 : 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(
+                              alpha: active ? 0.95 : 0.40,
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: NVSpace.x6),
+                  NVPrimaryButton(
+                    label: 'Get started',
+                    trailingIcon: Icons.arrow_forward_rounded,
+                    accent: true,
+                    onPressed: () => context.go('/onboarding'),
+                  ),
+                  const SizedBox(height: NVSpace.x3),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => context.go('/sign-in'),
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'Already have an account?  ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.78),
+                            fontWeight: FontWeight.w400,
+                          ),
+                          children: const [
+                            TextSpan(
+                              text: 'Sign in',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          blurRadius: 34,
-                          offset: const Offset(0, 18),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        NVPrimaryButton(
-                          label: 'Get started',
-                          height: 56,
-                          trailingIcon: Icons.arrow_forward,
-                          onPressed: () => context.go('/onboarding'),
-                        ),
-                        const SizedBox(height: 14),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => context.go('/sign-in'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: dark ? NV.textDark : NV.text,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                            child: RichText(
-                              text: TextSpan(
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: dark ? NV.textMutedDark : NV.textMuted,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                children: [
-                                  const TextSpan(text: 'Already have an account?  '),
-                                  TextSpan(
-                                    text: 'Sign in',
-                                    style: TextStyle(
-                                      color: dark ? NV.textDark : NV.text,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          'By continuing you agree to our Terms and Privacy Policy.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: c.textMuted,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],

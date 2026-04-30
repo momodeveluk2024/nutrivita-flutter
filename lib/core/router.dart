@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/app_shell.dart';
 import '../screens/food_detail.dart';
-import '../screens/intro_video.dart';
 import '../screens/onboarding.dart';
 import '../screens/password_reset.dart';
 import '../screens/profile_settings.dart';
@@ -12,6 +11,7 @@ import '../screens/search.dart';
 import '../screens/sign_in.dart';
 import '../screens/sign_up.dart';
 import '../screens/splash.dart';
+import '../screens/intro_video.dart';
 import '../screens/verify_email.dart';
 import '../screens/vitamin_detail.dart';
 import 'providers/auth_provider.dart';
@@ -123,6 +123,22 @@ GoRouter buildRouter(AuthProvider auth) {
         builder: (context, state) => SearchScreen(
           initialCategory: state.uri.queryParameters['category'] ?? '',
         ),
+      ),
+      GoRoute(
+        path: '/app/explore',
+        builder: (context, state) => const AppShell(initialTab: 1),
+      ),
+      GoRoute(
+        path: '/app/tracker',
+        builder: (context, state) => const AppShell(initialTab: 2),
+      ),
+      GoRoute(
+        path: '/app/saved',
+        builder: (context, state) => const AppShell(initialTab: 3),
+      ),
+      GoRoute(
+        path: '/app/profile',
+        builder: (context, state) => const AppShell(initialTab: 4),
       ),
       GoRoute(
         path: '/app/food/:id',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/providers/food_provider.dart';
@@ -54,7 +55,7 @@ class _AppShellState extends State<AppShell> {
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: c.surface.withValues(alpha: 0.92),
+          color: c.surface,
           border: Border(
             top: BorderSide(
               color: dark
@@ -74,6 +75,7 @@ class _AppShellState extends State<AppShell> {
                 return Expanded(
                   child: InkWell(
                     onTap: () {
+                      HapticFeedback.selectionClick();
                       setState(() => _index = i);
                       _refreshTab(context, i);
                     },

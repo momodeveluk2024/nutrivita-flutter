@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food_log.dart';
+import '../core/models/nutrition.dart';
 import '../core/providers/nutrition_provider.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -30,6 +32,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
   }
 
   Future<void> _selectDate(DateTime date) async {
+    HapticFeedback.selectionClick();
     setState(() => _selectedDate = _dateOnly(date));
     await _refresh();
   }
@@ -47,114 +50,103 @@ class _TrackerScreenState extends State<TrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
+    final c = NVColors.of(context);
     final nutrition = context.watch<NutritionProvider>();
-    final todayPct = ((nutrition.todayTotals?.averagePercent ?? 0) / 100).clamp(
-      0.0,
-      1.0,
-    );
+    final todayPct = ((nutrition.todayTotals?.averagePercent ?? 0) / 100).clamp(0.0, 1.0);
 
     return SafeArea(
+      bottom: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            padding: const EdgeInsets.fromLTRB(NVSpace.x5, NVSpace.x3, NVSpace.x5, NVSpace.x2),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text(
-                    _dateTitle(_selectedDate),
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.8,
-                      color: c.text,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      NVEyebrow('Tracker', color: c.textMuted),
+                      const SizedBox(height: 6),
+                      Text(
+                        _dateTitle(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.6,
+                          color: c.text,
+                          height: 1.1,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 NVCircleIconButton(
-                  icon: Icons.calendar_month_outlined,
+                  icon: Icons.calendar_today_rounded,
                   onTap: _pickDate,
                 ),
               ],
             ),
           ),
+          const SizedBox(height: NVSpace.x4),
           _WeekStrip(selectedDate: _selectedDate, onSelected: _selectDate),
+          const SizedBox(height: NVSpace.x5),
           Expanded(
             child: RefreshIndicator(
+              color: NV.accent,
               onRefresh: _refresh,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                padding: const EdgeInsets.fromLTRB(NVSpace.x5, 0, NVSpace.x5, 120),
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 children: [
-                  NVCard(
-                    padding: const EdgeInsets.all(18),
-                    child: Row(
-                      children: [
-                        RingProgress(
-                          pct: todayPct,
-                          size: 96,
-                          label: '${(todayPct * 100).round()}%',
-                          sub: 'of daily goal',
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SectionLabel('On track'),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${nutrition.todayTotals?.nutrients.length ?? 0} nutrients logged',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.2,
-                                  height: 1.3,
-                                  color: c.text,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${nutrition.streak}-day logging streak',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: c.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  _DaySummary(
+                    pct: todayPct,
+                    nutrients: nutrition.todayTotals?.nutrients.length ?? 0,
+                    streak: nutrition.streak,
+                    mealCount: nutrition.logs.length,
                   ),
-                  const SizedBox(height: 14),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 10),
-                    child: Text(
-                      'Meals',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                        color: c.text,
-                      ),
+                  const SizedBox(height: NVSpace.x6),
+                  if (nutrition.todayTotals != null) ...[
+                    const NVSectionHeader(
+                      eyebrow: 'Macros',
+                      title: 'Daily targets',
                     ),
+                    const SizedBox(height: NVSpace.x4),
+                    _MacroBars(totals: nutrition.todayTotals!),
+                    const SizedBox(height: NVSpace.x6),
+                  ],
+                  NVSectionHeader(
+                    eyebrow: 'Logged',
+                    title: nutrition.logs.isEmpty
+                        ? 'No meals'
+                        : '${nutrition.logs.length} ${nutrition.logs.length == 1 ? 'meal' : 'meals'}',
                   ),
+                  const SizedBox(height: NVSpace.x4),
                   if (nutrition.logs.isEmpty)
                     NVCard(
-                      padding: const EdgeInsets.all(18),
-                      child: Text(
-                        'Nothing logged for this day. Open a food and log it to this date.',
-                        style: TextStyle(color: c.textMuted),
+                      padding: const EdgeInsets.all(NVSpace.x5),
+                      child: Row(
+                        children: [
+                          Icon(Icons.no_meals_outlined, color: c.textMuted, size: 20),
+                          const SizedBox(width: NVSpace.x3),
+                          Expanded(
+                            child: Text(
+                              'Nothing logged for this day.',
+                              style: TextStyle(color: c.textMuted, fontSize: 13),
+                            ),
+                          ),
+                        ],
                       ),
                     )
                   else
                     ...nutrition.logs.map(
-                      (log) => _MealLogCard(log: log, date: _selectedDate),
+                      (log) => Padding(
+                        padding: const EdgeInsets.only(bottom: NVSpace.x2),
+                        child: _MealLogCard(log: log, date: _selectedDate),
+                      ),
                     ),
-                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -164,6 +156,208 @@ class _TrackerScreenState extends State<TrackerScreen> {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  DAY SUMMARY — ring + KPIs
+// ═══════════════════════════════════════════════════════════════
+
+class _DaySummary extends StatelessWidget {
+  const _DaySummary({
+    required this.pct,
+    required this.nutrients,
+    required this.streak,
+    required this.mealCount,
+  });
+
+  final double pct;
+  final int nutrients;
+  final int streak;
+  final int mealCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return NVCard(
+      elevated: true,
+      padding: const EdgeInsets.all(NVSpace.x5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              RingProgress(
+                pct: pct,
+                size: 96,
+                stroke: 9,
+                label: '${(pct * 100).round()}%',
+                sub: 'covered',
+              ),
+              const SizedBox(width: NVSpace.x5),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    NVEyebrow('On track', color: c.textMuted),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$nutrients nutrients',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: c.text,
+                        letterSpacing: -0.3,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      streak == 0
+                          ? 'Start a logging streak'
+                          : '$streak-day streak',
+                      style: TextStyle(fontSize: 12, color: c.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: NVSpace.x5),
+          Container(height: 1, color: c.border),
+          const SizedBox(height: NVSpace.x4),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniKPI(
+                  label: 'Meals',
+                  value: '$mealCount',
+                ),
+              ),
+              Container(width: 1, height: 28, color: c.border),
+              Expanded(
+                child: _MiniKPI(
+                  label: 'Streak',
+                  value: '$streak',
+                ),
+              ),
+              Container(width: 1, height: 28, color: c.border),
+              Expanded(
+                child: _MiniKPI(
+                  label: 'Coverage',
+                  value: '${(pct * 100).round()}%',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniKPI extends StatelessWidget {
+  const _MiniKPI({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return Column(
+      children: [
+        NVEyebrow(label, color: c.textMuted),
+        const SizedBox(height: 6),
+        Text(value, style: nvNumber(20, color: c.text)),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MACRO BARS
+// ═══════════════════════════════════════════════════════════════
+
+class _MacroBars extends StatelessWidget {
+  const _MacroBars({required this.totals});
+  final DayNutrientTotals totals;
+
+  @override
+  Widget build(BuildContext context) {
+    final macros = const ['Protein', 'Carbs', 'Fat', 'Fiber'];
+    return NVCard(
+      padding: const EdgeInsets.symmetric(horizontal: NVSpace.x5, vertical: NVSpace.x4),
+      child: Column(
+        children: [
+          for (var i = 0; i < macros.length; i++) ...[
+            if (i > 0) const SizedBox(height: NVSpace.x4),
+            _MacroLine(code: macros[i], totals: totals),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MacroLine extends StatelessWidget {
+  const _MacroLine({required this.code, required this.totals});
+  final String code;
+  final DayNutrientTotals totals;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    final hue = vitaminColors[code]!;
+    final t = totals.nutrients.firstWhere(
+      (n) => n.code == code,
+      orElse: () => const NutrientTotal(code: '', name: '', unit: 'g', amount: 0),
+    );
+    final pct = ((t.driPercent ?? 0) / 100).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: hue.fill, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                code,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: c.text,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ),
+            Text(
+              '${t.amount.toStringAsFixed(t.amount >= 100 ? 0 : 1)} ${t.unit}',
+              style: TextStyle(fontSize: 12, color: c.textMuted, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 42,
+              child: Text(
+                t.driPercent == null ? '—' : '${t.driPercent!.round()}%',
+                textAlign: TextAlign.right,
+                style: nvNumber(13, color: c.text, weight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        BarProgress(pct: pct, color: hue.fill, height: 4),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  WEEK STRIP — clean day cells with mini coverage bar
+// ═══════════════════════════════════════════════════════════════
 
 class _WeekStrip extends StatefulWidget {
   const _WeekStrip({required this.selectedDate, required this.onSelected});
@@ -177,7 +371,7 @@ class _WeekStrip extends StatefulWidget {
 
 class _WeekStripState extends State<_WeekStrip> {
   static final DateTime _firstDate = DateTime(2020);
-  static const double _itemExtent = 58;
+  static const double _itemExtent = 56;
   late final ScrollController _controller;
 
   @override
@@ -208,18 +402,15 @@ class _WeekStripState extends State<_WeekStrip> {
     final index = _dayIndex(widget.selectedDate);
     final viewport = _controller.position.viewportDimension;
     final max = _controller.position.maxScrollExtent;
-    final target = (index * _itemExtent - viewport / 2 + _itemExtent / 2).clamp(
-      0.0,
-      max,
-    );
+    final target = (index * _itemExtent - viewport / 2 + _itemExtent / 2).clamp(0.0, max);
     if (jump) {
       _controller.jumpTo(target);
       return;
     }
     _controller.animateTo(
       target,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
+      duration: NVMotion.base,
+      curve: NVMotion.standard,
     );
   }
 
@@ -227,115 +418,123 @@ class _WeekStripState extends State<_WeekStrip> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
     final days = context.watch<NutritionProvider>().weekTotals;
     final totalsByDate = {for (final day in days) day.date: day};
     final today = _dateOnly(DateTime.now());
     final count = today.difference(_firstDate).inDays + 1;
 
+    return SizedBox(
+      height: 78,
+      child: ListView.builder(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: NVSpace.x5),
+        itemCount: count,
+        itemExtent: _itemExtent,
+        itemBuilder: (context, i) {
+          final date = _firstDate.add(Duration(days: i));
+          final key = _dateString(date);
+          final pct = ((totalsByDate[key]?.averagePercent ?? 0) / 100).clamp(0.0, 1.0);
+          final active = _sameDay(date, widget.selectedDate);
+          final isToday = _sameDay(date, today);
+          return _DayCell(
+            date: date,
+            pct: pct,
+            active: active,
+            isToday: isToday,
+            onTap: () => widget.onSelected(date),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.date,
+    required this.pct,
+    required this.active,
+    required this.isToday,
+    required this.onTap,
+  });
+  final DateTime date;
+  final double pct;
+  final bool active;
+  final bool isToday;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    final dow = const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][date.weekday - 1];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-      child: SizedBox(
-        key: const ValueKey('track-date-strip'),
-        height: 92,
-        child: ListView.builder(
-          controller: _controller,
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: count,
-          itemExtent: _itemExtent,
-          itemBuilder: (context, i) {
-            final date = _firstDate.add(Duration(days: i));
-            final key = _dateString(date);
-            final pct = ((totalsByDate[key]?.averagePercent ?? 0) / 100).clamp(
-              0.0,
-              1.0,
-            );
-            final active = _sameDay(date, widget.selectedDate);
-            return SizedBox(
-              key: ValueKey('track-day-$key'),
-              width: _itemExtent,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => widget.onSelected(date),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 4,
-                    ),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: NVMotion.base,
+          curve: NVMotion.emphasized,
+          decoration: BoxDecoration(
+            color: active ? NV.surfaceInk : c.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: active ? NV.surfaceInk : c.border),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                dow,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                  color: active
+                      ? const Color(0xFFD8DAC8)
+                      : c.textMuted,
+                ),
+              ),
+              Text(
+                '${date.day}',
+                style: nvNumber(
+                  16,
+                  color: active ? const Color(0xFFFAFAFA) : c.text,
+                  weight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                width: 22,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: active
+                      ? Colors.white.withValues(alpha: 0.32)
+                      : c.surfaceMuted,
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: pct.clamp(0.0, 1.0),
+                  child: Container(
                     decoration: BoxDecoration(
-                      color: active ? NV.accent : c.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: active ? null : Border.all(color: c.border),
-                      boxShadow: active
-                          ? [
-                              BoxShadow(
-                                color: NV.accent.withValues(alpha: 0.24),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          ['M', 'T', 'W', 'T', 'F', 'S', 'S'][date.weekday - 1],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: active
-                                ? Colors.white.withValues(alpha: 0.72)
-                                : c.textMuted,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: active ? Colors.white : c.text,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: 18,
-                          height: 18,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: active
-                                ? Colors.white.withValues(alpha: 0.18)
-                                : c.surfaceMuted,
-                          ),
-                          child: Text(
-                            '${(pct * 100).round()}',
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                              color: active ? Colors.white : c.text,
-                            ),
-                          ),
-                        ),
-                      ],
+                      color: active ? Colors.white : NV.accent,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
               ),
-            );
-          },
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  MEAL LOG CARD
+// ═══════════════════════════════════════════════════════════════
 
 class _MealLogCard extends StatelessWidget {
   const _MealLogCard({required this.log, required this.date});
@@ -345,94 +544,76 @@ class _MealLogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: NVCard(
-        key: ValueKey('meal-log-${log.id}'),
-        onTap: () => showMealLogDetails(context, log, date: date),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            MealImageMosaic(
-              items: log.items,
-              fallbackLabel: log.mealType,
-              size: 54,
-              radius: 16,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    log.mealType,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: c.text,
-                    ),
+    final c = NVColors.of(context);
+    return NVCard(
+      key: ValueKey('meal-log-${log.id}'),
+      onTap: () => showMealLogDetails(context, log, date: date),
+      padding: const EdgeInsets.all(NVSpace.x3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          MealImageMosaic(
+            items: log.items,
+            fallbackLabel: log.mealType,
+            size: 52,
+            radius: NVRadius.cardSm,
+          ),
+          const SizedBox(width: NVSpace.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _titleCase(log.mealType),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: c.text,
+                    letterSpacing: -0.1,
                   ),
-                  const SizedBox(height: 2),
-                  if (log.items.isEmpty)
-                    Text(
-                      'Tap to review meal',
-                      style: TextStyle(fontSize: 12, color: c.textMuted),
-                    )
-                  else
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _mealSummary(log.items.length),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: NV.accent,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        ...log.items.take(3).map((item) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 3),
-                            child: Text(
-                              '${item.foodName} - ${item.servingG.round()}g',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                height: 1.15,
-                                color: c.textMuted,
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  log.items.isEmpty
+                      ? 'Tap to review'
+                      : log.items.map((i) => i.foodName).join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
+                ),
+              ],
             ),
-            Icon(Icons.chevron_right, size: 18, color: c.textMuted),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _mealSummary(log.items.length),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: c.textMuted,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.chevron_right_rounded, size: 18, color: c.textMuted),
+        ],
       ),
     );
   }
+
+  String _titleCase(String v) =>
+      v.isEmpty ? v : v[0].toUpperCase() + v.substring(1);
 }
 
 String _mealSummary(int count) {
-  if (count == 1) return '1 food';
-  return '$count foods';
+  if (count == 0) return '';
+  if (count == 1) return '1 item';
+  return '$count items';
 }
 
 String _dateTitle(DateTime date) {
   final today = _dateOnly(DateTime.now());
   if (_sameDay(date, today)) return 'Today';
-  if (_sameDay(date, today.subtract(const Duration(days: 1)))) {
-    return 'Yesterday';
-  }
+  if (_sameDay(date, today.subtract(const Duration(days: 1)))) return 'Yesterday';
   return '${_weekdayName(date.weekday)}, ${_monthName(date.month)} ${date.day}';
 }
 
@@ -442,18 +623,8 @@ String _weekdayName(int weekday) {
 
 String _monthName(int month) {
   return const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ][month - 1];
 }
 

@@ -1,11 +1,22 @@
 import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
+
 import 'core/api/api_endpoints.dart';
 import 'core/models/nutrient_reference.dart';
 import 'core/models/visual_catalog.dart';
 import 'theme.dart';
 
+// ═══════════════════════════════════════════════════════════════
+//  IMAGES
+// ═══════════════════════════════════════════════════════════════
+
 /// Striped placeholder — signals "real food photo goes here".
+/// Spec: no gradients on surfaces; the placeholder uses a flat tinted fill
+/// with a faint background icon.
 class PhotoPlaceholder extends StatelessWidget {
   final String label;
   final double height;
@@ -18,65 +29,45 @@ class PhotoPlaceholder extends StatelessWidget {
     this.label = '',
     this.height = 120,
     this.width,
-    this.radius = 16,
+    this.radius = NVRadius.card,
     this.tone = 'warm',
   });
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final initials = _initials(label);
+    final initials = _initialsFor(label, fallback: 'NV');
     final base = tone == 'warm' ? const Color(0xFFB98B55) : NV.accent;
-    final bg = dark ? const Color(0xFF17211C) : const Color(0xFFF0F4EC);
+    final bg = dark
+        ? Color.alphaBlend(base.withValues(alpha: 0.10), NV.surfaceDark)
+        : Color.alphaBlend(base.withValues(alpha: 0.08), NV.surfaceMuted);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         width: width ?? double.infinity,
         height: height,
-        decoration: BoxDecoration(
-          color: bg,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              base.withValues(alpha: dark ? 0.30 : 0.18),
-              bg,
-              base.withValues(alpha: dark ? 0.18 : 0.10),
-            ],
-          ),
-        ),
+        color: bg,
         child: Stack(
           fit: StackFit.expand,
           children: [
             Positioned(
-              right: -height * 0.12,
-              bottom: -height * 0.18,
+              right: -height * 0.10,
+              bottom: -height * 0.16,
               child: Icon(
-                Icons.eco,
+                Icons.eco_outlined,
                 size: height * 0.78,
-                color: base.withValues(alpha: dark ? 0.12 : 0.10),
+                color: base.withValues(alpha: dark ? 0.10 : 0.08),
               ),
             ),
             Center(
-              child: Container(
-                padding: EdgeInsets.all(math.max(6, height * 0.10)),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: dark ? 0.08 : 0.46),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: dark ? 0.08 : 0.55),
-                  ),
-                ),
-                child: Text(
-                  initials,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: math.max(9, height * 0.18),
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: base.withValues(alpha: dark ? 0.88 : 0.95),
-                  ),
+              child: Text(
+                initials,
+                style: TextStyle(
+                  fontSize: math.max(10, height * 0.16),
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  color: base.withValues(alpha: dark ? 0.92 : 0.78),
                 ),
               ),
             ),
@@ -85,47 +76,38 @@ class PhotoPlaceholder extends StatelessWidget {
       ),
     );
   }
-
-  String _initials(String value) {
-    final words = value
-        .split(RegExp(r'[^A-Za-z0-9]+'))
-        .where((word) => word.isNotEmpty)
-        .take(2)
-        .toList();
-    if (words.isEmpty) return 'NV';
-    return words.map((word) => word[0]).join().toUpperCase();
-  }
 }
 
 class FoodPhoto extends StatelessWidget {
   final String label;
   final String? imageUrl;
+  final String? category;
   final double height;
   final double? width;
   final double radius;
   final String tone;
+  final BoxFit fit;
 
   const FoodPhoto({
     super.key,
     required this.label,
     this.imageUrl,
+    this.category,
     this.height = 120,
     this.width,
-    this.radius = 16,
+    this.radius = NVRadius.card,
     this.tone = 'warm',
+    this.fit = BoxFit.cover,
   });
 
   @override
   Widget build(BuildContext context) {
     final url = imageUrl?.trim();
+    final slug = label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+    final fallbackAsset = 'assets/foods/$slug.jpg';
+
     if (url == null || url.isEmpty) {
-      return PhotoPlaceholder(
-        label: label,
-        height: height,
-        width: width,
-        radius: radius,
-        tone: tone,
-      );
+      return _buildAssetFallback(fallbackAsset);
     }
 
     return ClipRRect(
@@ -134,24 +116,42 @@ class FoodPhoto extends StatelessWidget {
         url,
         width: width ?? double.infinity,
         height: height,
-        fit: BoxFit.cover,
+        fit: fit,
         filterQuality: FilterQuality.medium,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return PhotoPlaceholder(
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return _ShimmerBox(width: width, height: height, radius: 0);
+        },
+        errorBuilder: (context, error, stackTrace) => _buildAssetFallback(fallbackAsset),
+      ),
+    );
+  }
+
+  Widget _buildAssetFallback(String assetPath) {
+    final catUrl = category != null && category!.isNotEmpty
+        ? categoryVisualFor(category!).imageUrl
+        : fallbackCategoryVisual.imageUrl;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Image.asset(
+        assetPath,
+        width: width ?? double.infinity,
+        height: height,
+        fit: fit,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => Image.network(
+          catUrl,
+          width: width ?? double.infinity,
+          height: height,
+          fit: fit,
+          errorBuilder: (_, __, ___) => PhotoPlaceholder(
             label: label,
             height: height,
             width: width,
-            radius: 0,
+            radius: radius,
             tone: tone,
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => PhotoPlaceholder(
-          label: label,
-          height: height,
-          width: width,
-          radius: radius,
-          tone: tone,
+          ),
         ),
       ),
     );
@@ -179,19 +179,21 @@ class UserAvatar extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     final url = avatarUrl?.trim() ?? '';
+    final fg = dark ? NV.textDark : NV.accentDeep;
+
     final content = ClipOval(
       child: Container(
         width: size,
         height: size,
-        color: dark ? NV.accent.withValues(alpha: 0.24) : NV.accentSoft,
+        color: dark ? NV.accent.withValues(alpha: 0.22) : NV.accentSoft,
         alignment: Alignment.center,
         child: url.isEmpty
             ? Text(
                 _initialsFor(displayName, fallback: '?'),
                 style: TextStyle(
-                  color: dark ? NV.textDark : NV.accent,
-                  fontSize: size * 0.32,
-                  fontWeight: FontWeight.w800,
+                  color: fg,
+                  fontSize: size * 0.34,
+                  fontWeight: FontWeight.w700,
                 ),
               )
             : Image.network(
@@ -202,9 +204,9 @@ class UserAvatar extends StatelessWidget {
                 errorBuilder: (_, _, _) => Text(
                   _initialsFor(displayName, fallback: '?'),
                   style: TextStyle(
-                    color: dark ? NV.textDark : NV.accent,
-                    fontSize: size * 0.32,
-                    fontWeight: FontWeight.w800,
+                    color: fg,
+                    fontSize: size * 0.34,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -219,15 +221,10 @@ class UserAvatar extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: c.surface, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: dark ? 0.35 : 0.10),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: c.surface,
+            border: Border.all(color: c.border),
           ),
+          padding: const EdgeInsets.all(2),
           child: content,
         ),
         if (editable)
@@ -238,14 +235,14 @@ class UserAvatar extends StatelessWidget {
               width: size * 0.34,
               height: size * 0.34,
               decoration: BoxDecoration(
-                color: NV.accent,
+                color: NV.surfaceInk,
                 shape: BoxShape.circle,
                 border: Border.all(color: c.surface, width: 2),
               ),
               child: Icon(
-                Icons.photo_camera_outlined,
-                color: Colors.white,
-                size: size * 0.17,
+                Icons.edit_outlined,
+                color: const Color(0xFFFAFAFA),
+                size: size * 0.16,
               ),
             ),
           ),
@@ -265,6 +262,10 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  NUTRIENT VISUALS
+// ═══════════════════════════════════════════════════════════════
+
 class VitaminChip extends StatelessWidget {
   final String code;
   final double size;
@@ -279,7 +280,7 @@ class VitaminChip extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: dark ? hue.fill.withValues(alpha: 0.2) : hue.bg,
+        color: dark ? hue.fill.withValues(alpha: 0.20) : hue.bg,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
@@ -307,38 +308,32 @@ class NutrientPill extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     final visual = nutrientVisualFor(code);
-    final bg = dark
-        ? visual.accent.withValues(alpha: 0.16)
-        : visual.accent.withValues(alpha: 0.09);
+    final bg = dark ? c.surfaceMuted : NV.surfaceMuted;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.fromLTRB(6, 5, compact ? 8 : 10, 5),
+        borderRadius: BorderRadius.circular(NVRadius.chip),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(6, 5, compact ? 9 : 11, 5),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: visual.accent.withValues(alpha: 0.10)),
+            borderRadius: BorderRadius.circular(NVRadius.chip),
+            border: Border.all(color: c.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: compact ? 20 : 24,
-                height: compact ? 20 : 24,
+                width: compact ? 20 : 22,
+                height: compact ? 20 : 22,
                 decoration: BoxDecoration(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.07)
-                      : Colors.white.withValues(alpha: 0.76),
+                  color: dark ? visual.accent.withValues(alpha: 0.22) : visual.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   visual.icon,
-                  size: compact ? 11 : 13,
+                  size: compact ? 11 : 12,
                   color: visual.accent,
                 ),
               ),
@@ -347,7 +342,7 @@ class NutrientPill extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: compact ? 11 : 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: c.text,
                 ),
               ),
@@ -382,95 +377,70 @@ class NutrientCard extends StatelessWidget {
     final bg = dark ? hue.fill.withValues(alpha: 0.18) : hue.bg;
     return NVCard(
       onTap: onTap,
-      radius: compact ? 16 : 18,
-      padding: EdgeInsets.all(compact ? 12 : 14),
+      radius: compact ? NVRadius.cardSm : NVRadius.card,
+      padding: EdgeInsets.all(compact ? 12 : 16),
       child: Row(
         children: [
           Container(
-            width: compact ? 48 : 58,
-            height: compact ? 48 : 58,
+            width: compact ? 44 : 52,
+            height: compact ? 44 : 52,
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(compact ? 15 : 18),
-              border: Border.all(color: hue.fill.withValues(alpha: 0.12)),
+              borderRadius: BorderRadius.circular(compact ? 12 : 14),
             ),
-            child: Icon(visual.icon, size: compact ? 22 : 26, color: hue.fill),
+            child: Icon(visual.icon, size: compact ? 20 : 24, color: hue.fill),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
                   children: [
-                    Text(
-                      nutrient.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 14 : 16,
-                        fontWeight: FontWeight.w800,
-                        color: c.text,
+                    Flexible(
+                      child: Text(
+                        nutrient.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 15,
+                          fontWeight: FontWeight.w700,
+                          color: c.text,
+                          letterSpacing: -0.1,
+                        ),
                       ),
                     ),
-                    _NutrientMetaChip(label: nutrient.group, color: hue.fill),
+                    const SizedBox(width: 6),
                     if (nutrient.dailyTarget > 0)
-                      _NutrientMetaChip(
-                        label: nutrient.targetLabel,
-                        color: c.textMuted,
+                      Text(
+                        nutrient.targetLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: c.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   nutrient.summary,
-                  maxLines: compact ? 2 : 3,
+                  maxLines: compact ? 2 : 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: compact ? 12 : 13,
-                    height: 1.35,
+                    fontSize: 12,
+                    height: 1.4,
                     color: c.textMuted,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          trailing ??
-              (onTap == null
-                  ? const SizedBox.shrink()
-                  : Icon(Icons.chevron_right, size: 20, color: c.textMuted)),
+          if (trailing != null)
+            trailing!
+          else if (onTap != null)
+            Icon(Icons.chevron_right, size: 20, color: c.textMuted),
         ],
-      ),
-    );
-  }
-}
-
-class _NutrientMetaChip extends StatelessWidget {
-  const _NutrientMetaChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: dark ? 0.18 : 0.10),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }
@@ -481,8 +451,8 @@ class NutrientArtwork extends StatelessWidget {
     super.key,
     required this.code,
     required this.name,
-    this.height = 150,
-    this.radius = 24,
+    this.height = 160,
+    this.radius = NVRadius.cardLg,
   });
 
   final String code;
@@ -496,68 +466,51 @@ class NutrientArtwork extends StatelessWidget {
     final hue = vitaminColors[code] ?? vitaminColors['C']!;
     final visual = nutrientVisualFor(code);
     final icon = visual.icon;
+    final bg = dark ? hue.fill.withValues(alpha: 0.20) : hue.bg;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         height: height,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              dark ? hue.fill.withValues(alpha: 0.28) : hue.bg,
-              dark ? const Color(0xFF17211C) : Colors.white,
-              hue.fill.withValues(alpha: dark ? 0.20 : 0.16),
-            ],
-          ),
-        ),
+        color: bg,
         child: Stack(
           fit: StackFit.expand,
           children: [
             Positioned(
-              right: -26,
-              top: -20,
+              right: -28,
+              top: -24,
               child: Icon(
                 icon,
                 size: height * 0.86,
-                color: hue.fill.withValues(alpha: dark ? 0.12 : 0.10),
+                color: hue.fill.withValues(alpha: dark ? 0.14 : 0.10),
               ),
             ),
-            Positioned(
-              left: 18,
-              bottom: 16,
-              child: Row(
+            Padding(
+              padding: const EdgeInsets.all(NVSpace.x5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  VitaminChip(code: code, size: 58),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  NVEyebrow(_artLabel(code), color: hue.fill),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: dark ? NV.textDark : NV.text,
-                        ),
-                      ),
-                      Text(
-                        _artLabel(code),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: hue.fill,
+                      VitaminChip(code: code, size: 52),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: dark ? NV.textDark : NV.text,
+                            letterSpacing: -0.4,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
-            Positioned(
-              right: 18,
-              bottom: 18,
-              child: Icon(icon, size: 34, color: hue.fill),
             ),
           ],
         ),
@@ -566,27 +519,20 @@ class NutrientArtwork extends StatelessWidget {
   }
 
   String _artLabel(String code) {
-    if (code.startsWith('B')) return 'B-complex support';
-    if ([
-      'Fe',
-      'Ca',
-      'Zn',
-      'Mg',
-      'Kp',
-      'Na',
-      'P',
-      'Se',
-      'Mn',
-      'S',
-    ].contains(code)) {
-      return 'Mineral profile';
+    if (code.startsWith('B')) return 'B-COMPLEX';
+    if (['Fe','Ca','Zn','Mg','Kp','Na','P','Se','Mn','S'].contains(code)) {
+      return 'MINERAL';
     }
-    if (['Protein', 'Fiber', 'Carbs', 'Fat'].contains(code)) {
-      return 'Macro target';
+    if (['Protein','Fiber','Carbs','Fat'].contains(code)) {
+      return 'MACRO';
     }
-    return 'Daily value guide';
+    return 'VITAMIN';
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  PROGRESS — flat, no gradients, tabular numerals
+// ═══════════════════════════════════════════════════════════════
 
 class RingProgress extends StatelessWidget {
   final double pct;
@@ -611,14 +557,13 @@ class RingProgress extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final c = NVColors(dark);
     final ringColor = color ?? NV.accent;
-    final trackColor = dark ? NV.borderDark : const Color(0xFFE5E8DF);
-
-    final targetPct = pct.clamp(0.0, 1.0);
+    final trackColor = dark ? NV.borderDark : const Color(0xFFE5E7EB);
+    final target = pct.clamp(0.0, 1.0);
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: targetPct),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutCubic,
+      tween: Tween(begin: 0, end: target),
+      duration: NVMotion.slow,
+      curve: NVMotion.standard,
       builder: (context, value, _) {
         final animatedLabel = label.endsWith('%')
             ? '${(value * 100).round()}%'
@@ -643,19 +588,18 @@ class RingProgress extends StatelessWidget {
                 children: [
                   Text(
                     animatedLabel,
-                    style: TextStyle(
-                      fontSize: size * 0.22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0,
-                      color: c.text,
-                    ),
+                    style: nvNumber(size * 0.24, color: c.text, weight: FontWeight.w700),
                   ),
                   if (sub != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 1),
+                      padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         sub!,
-                        style: TextStyle(fontSize: 10, color: c.textMuted),
+                        style: TextStyle(
+                          fontSize: math.max(9, size * 0.10),
+                          color: c.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                 ],
@@ -690,27 +634,9 @@ class _RingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, r, trackPaint);
 
-    final shadowPaint = Paint()
-      ..color = color.withValues(alpha: 0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke + 5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: r),
-      -math.pi / 2,
-      2 * math.pi * pct,
-      false,
-      shadowPaint,
-    );
-
+    if (pct <= 0) return;
     final arcPaint = Paint()
-      ..shader = SweepGradient(
-        colors: [
-          color.withValues(alpha: 0.78),
-          color,
-          color.withValues(alpha: 0.88),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: r))
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
@@ -737,39 +663,24 @@ class BarProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final track = dark ? NV.borderDark : const Color(0xFFE5E8DF);
+    final track = dark ? NV.borderDark : const Color(0xFFE5E7EB);
     final fill = color ?? NV.accent;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: pct.clamp(0.0, 1.0)),
-      duration: const Duration(milliseconds: 760),
-      curve: Curves.easeOutCubic,
+      duration: NVMotion.slow,
+      curve: NVMotion.standard,
       builder: (context, value, _) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(height),
           child: Container(
             height: height,
-            decoration: BoxDecoration(
-              color: track,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? 0.22 : 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            color: track,
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: value,
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      fill.withValues(alpha: 0.78),
-                      fill,
-                      Color.lerp(fill, Colors.white, dark ? 0.10 : 0.20)!,
-                    ],
-                  ),
+                  color: fill,
                   borderRadius: BorderRadius.circular(height),
                 ),
               ),
@@ -780,6 +691,449 @@ class BarProgress extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  CARDS, BUTTONS, INPUTS
+// ═══════════════════════════════════════════════════════════════
+
+/// Hairline-bordered card. No shadow by default — the border is the affordance.
+class NVCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final double radius;
+  final Color? background;
+  final bool noBorder;
+  final VoidCallback? onTap;
+  /// If true, applies a subtle long-distance ambient shadow (used for hero cards).
+  final bool elevated;
+
+  const NVCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.radius = NVRadius.card,
+    this.background,
+    this.noBorder = false,
+    this.onTap,
+    this.elevated = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    final bg = background ?? c.surface;
+    final shape = BorderRadius.circular(radius);
+
+    final box = AnimatedContainer(
+      duration: NVMotion.fast,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: shape,
+        border: noBorder ? null : Border.all(color: c.border),
+        boxShadow: elevated
+            ? [
+                BoxShadow(
+                  color: dark
+                      ? Colors.black.withValues(alpha: 0.32)
+                      : const Color(0xFF0F1E14).withValues(alpha: 0.04),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ]
+            : null,
+      ),
+      child: child,
+    );
+    if (onTap == null) return box;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: shape,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: shape,
+        child: box,
+      ),
+    );
+  }
+}
+
+/// Primary CTA. Default is **ink** (warm near-black) per the design system.
+/// Set `accent: true` to use the brand green — reserve for the single
+/// hero callout per viewport.
+class NVPrimaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? trailingIcon;
+  final IconData? leadingIcon;
+  final double height;
+  final double? width;
+  final double radius;
+  final bool accent;
+  final bool loading;
+
+  const NVPrimaryButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.trailingIcon,
+    this.leadingIcon,
+    this.height = 54,
+    this.width,
+    this.radius = 999,
+    this.accent = false,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = accent ? NV.accent : NV.surfaceInk;
+    final fg = accent ? Colors.white : const Color(0xFFFAFAFA);
+    return SizedBox(
+      height: height,
+      width: width ?? double.infinity,
+      child: ElevatedButton(
+        onPressed: loading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bg,
+          foregroundColor: fg,
+          disabledBackgroundColor: bg.withValues(alpha: 0.55),
+          disabledForegroundColor: fg.withValues(alpha: 0.75),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+        child: loading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  valueColor: AlwaysStoppedAnimation(fg),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  if (leadingIcon != null) ...[
+                    Icon(leadingIcon, size: 18),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  if (trailingIcon != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(trailingIcon, size: 16),
+                  ],
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Secondary action — pill-shaped outlined.
+class NVSecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? leadingIcon;
+  final double height;
+
+  const NVSecondaryButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.leadingIcon,
+    this.height = 48,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return SizedBox(
+      height: height,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: c.text,
+          backgroundColor: c.surface,
+          side: BorderSide(color: c.border),
+          shape: const StadiumBorder(),
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.05,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leadingIcon != null) ...[
+              Icon(leadingIcon, size: 16, color: c.text),
+              const SizedBox(width: 8),
+            ],
+            Text(label),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small circular header button (back / bookmark / etc.). Flat surface.
+class NVCircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color? background;
+  final Color? foreground;
+  final double size;
+  const NVCircleIconButton({
+    super.key,
+    required this.icon,
+    this.onTap,
+    this.background,
+    this.foreground,
+    this.size = 40,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = NVColors(dark);
+    return Material(
+      color: background ?? c.surface,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: c.border),
+          ),
+          child: Icon(icon, size: 18, color: foreground ?? c.text),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TYPE — eyebrows, large titles, big numbers
+// ═══════════════════════════════════════════════════════════════
+
+class NVEyebrow extends StatelessWidget {
+  final String text;
+  final Color? color;
+  final EdgeInsetsGeometry? padding;
+  const NVEyebrow(this.text, {super.key, this.color, this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return Padding(
+      padding: padding ?? EdgeInsets.zero,
+      child: Text(
+        text.toUpperCase(),
+        style: nvEyebrow(color: color ?? c.textMuted),
+      ),
+    );
+  }
+}
+
+/// Backwards-compatible alias kept for existing callers.
+class SectionLabel extends StatelessWidget {
+  final String text;
+  final EdgeInsetsGeometry? padding;
+  const SectionLabel(this.text, {super.key, this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    return NVEyebrow(text, padding: padding);
+  }
+}
+
+/// Big metric — for hero numbers ("1,840 / 2,200 kcal").
+class NVMetric extends StatelessWidget {
+  final String value;
+  final String? unit;
+  final String? label;
+  final TextAlign align;
+  final double valueSize;
+  final Color? valueColor;
+
+  const NVMetric({
+    super.key,
+    required this.value,
+    this.unit,
+    this.label,
+    this.align = TextAlign.start,
+    this.valueSize = 36,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return Column(
+      crossAxisAlignment: align == TextAlign.center
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (label != null) ...[
+          NVEyebrow(label!, color: c.textMuted),
+          const SizedBox(height: NVSpace.x2),
+        ],
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              value,
+              style: nvNumber(valueSize, color: valueColor ?? c.text, weight: FontWeight.w700),
+            ),
+            if (unit != null) ...[
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  unit!,
+                  style: TextStyle(
+                    fontSize: math.max(11, valueSize * 0.32),
+                    color: c.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Section heading row: large title + optional trailing action.
+class NVSectionHeader extends StatelessWidget {
+  final String title;
+  final String? eyebrow;
+  final Widget? trailing;
+  final EdgeInsetsGeometry padding;
+  const NVSectionHeader({
+    super.key,
+    required this.title,
+    this.eyebrow,
+    this.trailing,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return Padding(
+      padding: padding,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (eyebrow != null) ...[
+                  NVEyebrow(eyebrow!),
+                  const SizedBox(height: NVSpace.x1),
+                ],
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: c.text,
+                    letterSpacing: -0.3,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BENTO TILE / STAT
+// ═══════════════════════════════════════════════════════════════
+
+/// A single tile in a bento grid: eyebrow, optional icon, big value.
+class NVBentoTile extends StatelessWidget {
+  final String eyebrow;
+  final Widget child;
+  final IconData? icon;
+  final Color? iconColor;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final Color? background;
+
+  const NVBentoTile({
+    super.key,
+    required this.eyebrow,
+    required this.child,
+    this.icon,
+    this.iconColor,
+    this.onTap,
+    this.padding = const EdgeInsets.all(NVSpace.x4),
+    this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return NVCard(
+      onTap: onTap,
+      padding: padding,
+      background: background,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Expanded(child: NVEyebrow(eyebrow)),
+              if (icon != null)
+                Icon(icon, size: 16, color: iconColor ?? c.textMuted),
+            ],
+          ),
+          const SizedBox(height: NVSpace.x4),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SELECT FIELD (refreshed)
+// ═══════════════════════════════════════════════════════════════
 
 class NVSelectField extends StatelessWidget {
   const NVSelectField({
@@ -803,25 +1157,18 @@ class NVSelectField extends StatelessWidget {
     final c = NVColors(dark);
     final displayValue = value == null ? 'Choose' : _display(value!);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: NVSpace.x3),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(NVRadius.field),
           onTap: () => _open(context),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
             decoration: BoxDecoration(
               color: c.surface,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(NVRadius.field),
               border: Border.all(color: c.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? 0.18 : 0.04),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: Row(
               children: [
@@ -829,40 +1176,21 @@ class NVSelectField extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: c.textMuted,
-                        ),
-                      ),
+                      NVEyebrow(label, color: c.textMuted),
                       const SizedBox(height: 4),
                       Text(
                         displayValue,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           color: value == null ? c.textMuted : c.text,
+                          letterSpacing: -0.1,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? NV.accent.withValues(alpha: 0.14)
-                        : NV.accentSoft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: NV.accent,
-                  ),
-                ),
+                Icon(Icons.unfold_more_rounded, color: c.textMuted, size: 20),
               ],
             ),
           ),
@@ -882,18 +1210,11 @@ class NVSelectField extends StatelessWidget {
           top: false,
           child: Container(
             margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             decoration: BoxDecoration(
               color: c.surface,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(NVRadius.cardLg),
               border: Border.all(color: c.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? 0.42 : 0.12),
-                  blurRadius: 30,
-                  offset: const Offset(0, 16),
-                ),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -901,7 +1222,7 @@ class NVSelectField extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    width: 42,
+                    width: 36,
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 14),
                     decoration: BoxDecoration(
@@ -915,50 +1236,46 @@ class NVSelectField extends StatelessWidget {
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                       color: c.text,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
                 ...values.map((option) {
                   final selected = option == value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Material(
-                      color: selected
-                          ? (dark
-                                ? NV.accent.withValues(alpha: 0.14)
-                                : NV.accentSoft)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => Navigator.of(sheetContext).pop(option),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _display(option),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: c.text,
-                                  ),
+                  return Material(
+                    color: selected
+                        ? (dark ? NV.accent.withValues(alpha: 0.16) : NV.accentSoft)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(NVRadius.field),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(NVRadius.field),
+                      onTap: () => Navigator.of(sheetContext).pop(option),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _display(option),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: c.text,
                                 ),
                               ),
-                              if (selected)
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: NV.accent,
-                                  size: 20,
-                                ),
-                            ],
-                          ),
+                            ),
+                            if (selected)
+                              const Icon(
+                                Icons.check_rounded,
+                                color: NV.accent,
+                                size: 20,
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -976,201 +1293,75 @@ class NVSelectField extends StatelessWidget {
   String _display(String value) => display?.call(value) ?? value;
 }
 
-/// Reusable card surface.
-class NVCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final double radius;
-  final Color? background;
-  final bool noBorder;
-  final VoidCallback? onTap;
-  const NVCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.radius = 20,
-    this.background,
-    this.noBorder = false,
-    this.onTap,
-  });
+// ═══════════════════════════════════════════════════════════════
+//  SHIMMER / SKELETON
+// ═══════════════════════════════════════════════════════════════
 
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
-    final bg = background ?? c.surface;
-    final widget = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(radius),
-        border: noBorder ? null : Border.all(color: c.border, width: 1),
-        boxShadow: noBorder
-            ? null
-            : [
-                BoxShadow(
-                  color: dark
-                      ? Colors.black.withValues(alpha: 0.35)
-                      : const Color(0xFF0F1E14).withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-      ),
-      child: child,
-    );
-    if (onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(radius),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(radius),
-          child: widget,
-        ),
-      );
-    }
-    return widget;
-  }
-}
-
-/// Primary CTA button.
-/// Primary CTA. Per Nutrimate Design System v2 the default is **ink**:
-/// dark warm-near-black background (`--text` = `#14110E`) with light
-/// text-on-ink. Set `accent: true` to flip to amber (used inside dark
-/// recommendation cards or single-callout moments).
-class NVPrimaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final IconData? trailingIcon;
-  final IconData? leadingIcon;
-  final double height;
+class _ShimmerBox extends StatelessWidget {
   final double? width;
+  final double height;
   final double radius;
-  final bool accent;
-
-  const NVPrimaryButton({
-    super.key,
-    required this.label,
-    this.onPressed,
-    this.trailingIcon,
-    this.leadingIcon,
-    this.height = 54,
-    this.width,
-    this.radius = 999,
-    this.accent = false,
-  });
+  const _ShimmerBox({this.width, required this.height, this.radius = NVRadius.cardSm});
 
   @override
   Widget build(BuildContext context) {
-    final bg = accent ? NV.accent : NV.surfaceInk;
-    final fg = accent ? Colors.white : const Color(0xFFFAF4EC);
-    return SizedBox(
-      height: height,
-      width: width ?? double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radius),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            if (leadingIcon != null) ...[
-              Icon(leadingIcon, size: 18),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            if (trailingIcon != null) ...[
-              const SizedBox(width: 8),
-              Icon(trailingIcon, size: 16),
-            ],
-          ],
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: dark ? const Color(0xFF1B2420) : const Color(0xFFEDEFE8),
+      highlightColor: dark ? const Color(0xFF22302A) : Colors.white,
+      child: Container(
+        width: width ?? double.infinity,
+        height: height,
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF1B2420) : const Color(0xFFEDEFE8),
+          borderRadius: BorderRadius.circular(radius),
         ),
       ),
     );
   }
 }
 
-/// Small circular header button (back / bookmark / etc.)
-class NVCircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final Color? background;
-  final Color? foreground;
-  final double size;
-  const NVCircleIconButton({
-    super.key,
-    required this.icon,
-    this.onTap,
-    this.background,
-    this.foreground,
-    this.size = 36,
-  });
+class NVSkeleton extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double radius;
+  const NVSkeleton({super.key, this.width, this.height = 14, this.radius = 6});
+
+  @override
+  Widget build(BuildContext context) =>
+      _ShimmerBox(width: width, height: height, radius: radius);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FROSTED OVERLAY (used for sliver hero bars on photo screens)
+// ═══════════════════════════════════════════════════════════════
+
+class NVFrosted extends StatelessWidget {
+  final Widget child;
+  final double sigma;
+  final Color? tint;
+  const NVFrosted({super.key, required this.child, this.sigma = 14, this.tint});
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
-    return Material(
-      color: background ?? c.surfaceMuted,
-      shape: const CircleBorder(),
-      shadowColor: Colors.black.withValues(alpha: dark ? 0.40 : 0.12),
-      elevation: 2,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
         child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: c.border.withValues(alpha: 0.70)),
-          ),
-          child: Icon(icon, size: 18, color: foreground ?? c.text),
+          color: tint ?? (dark
+              ? Colors.black.withValues(alpha: 0.32)
+              : Colors.white.withValues(alpha: 0.62)),
+          child: child,
         ),
       ),
     );
   }
 }
 
-/// Section label (uppercase, tracked).
-class SectionLabel extends StatelessWidget {
-  final String text;
-  final EdgeInsetsGeometry? padding;
-  const SectionLabel(this.text, {super.key, this.padding});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final c = NVColors(dark);
-    return Padding(
-      padding: padding ?? EdgeInsets.zero,
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: c.textMuted,
-          letterSpacing: 1,
-        ),
-      ),
-    );
-  }
-}
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
 
 String _initialsFor(String value, {String fallback = 'NV'}) {
   final words = value

@@ -297,6 +297,7 @@ class _FoodResult extends StatelessWidget {
             FoodPhoto(
               label: food.name,
               imageUrl: food.imageUrl,
+              category: food.category,
               height: 56,
               width: 56,
               radius: 12,
