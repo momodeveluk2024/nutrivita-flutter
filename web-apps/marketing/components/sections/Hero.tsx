@@ -1,14 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion, useScroll, useTransform, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useScroll, useTransform, useReducedMotion } from "motion/react";
 import { SplitText } from "../motion/SplitText";
 import { MagneticButton } from "../motion/MagneticButton";
 import { Eyebrow } from "../primitives/Eyebrow";
 import { NutrientPill } from "../primitives/NutrientPill";
 import { hero } from "@/lib/copy";
-import { heroPhoto } from "@/lib/images";
+import { phoneMealPool, type PhoneMeal } from "@/lib/images";
 
 export function Hero() {
   const reduce = useReducedMotion();
@@ -89,7 +89,7 @@ export function Hero() {
 
         {/* Right: phone mockup */}
         <motion.div style={{ y: phoneY }} className="relative mx-auto">
-          <PhoneMockup ringProgress={ringProgress} photo={heroPhoto.url} alt={heroPhoto.alt} />
+          <PhoneMockup ringProgress={ringProgress} reduce={reduce ?? false} />
         </motion.div>
       </div>
     </section>
@@ -151,12 +151,10 @@ function Capsule({
 /* ---------- Phone mockup with animated ring ---------- */
 function PhoneMockup({
   ringProgress,
-  photo,
-  alt,
+  reduce,
 }: {
   ringProgress: import("motion/react").MotionValue<number>;
-  photo: string;
-  alt: string;
+  reduce: boolean;
 }) {
   return (
     <div className="relative w-[320px] h-[640px] rounded-[44px] bg-[var(--color-surface)] border border-[var(--color-border)] p-3 shadow-[0_40px_120px_-32px_rgba(19,26,22,0.30)]">
@@ -178,33 +176,69 @@ function PhoneMockup({
           </div>
         </div>
 
-        {/* Meal card with real photo */}
-        <div className="bg-white border border-[var(--color-border)] rounded-2xl p-3">
-          <div className="flex gap-2.5 items-center pb-2">
-            <div className="relative w-10 h-10 rounded-xl overflow-hidden">
-              <Image src={photo} alt={alt} fill sizes="40px" className="object-cover" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold leading-tight">Salmon, Atlantic</p>
-              <p className="text-[10px] text-[var(--color-text-muted)] leading-tight">120 g · 264 kcal</p>
-            </div>
-          </div>
-          <Mealette name="Spinach, raw" amount="45 g · 11 kcal" tone="#7A9F6A" />
-          <Mealette name="Greek yogurt"  amount="170 g · 100 kcal" tone="#D9C18B" />
-        </div>
+        {/* Animated meal card — items cycle places, fresh ones rotate in */}
+        <MealCarousel pool={phoneMealPool} reduce={reduce} />
       </div>
     </div>
   );
 }
 
-function Mealette({ name, amount, tone }: { name: string; amount: string; tone: string }) {
+/* ---------- Animated rotating meal list ----------
+   Every 2.5s the bottom item rises to the top while the others slide
+   down (a real "push down + go up" reorder via Framer's `layout`).
+   Every 4th tick a fresh food enters at the bottom from the pool, so
+   the user sees variety as well as motion. */
+function MealCarousel({ pool, reduce }: { pool: PhoneMeal[]; reduce: boolean }) {
+  const [visible, setVisible] = useState<PhoneMeal[]>(() => pool.slice(0, 3));
+  const tickRef = useRef(0);
+  const nextIdxRef = useRef(3);
+
+  useEffect(() => {
+    if (reduce || pool.length < 4) return;
+    const id = setInterval(() => {
+      tickRef.current += 1;
+      if (tickRef.current % 4 === 0) {
+        const nextFood = pool[nextIdxRef.current % pool.length]!;
+        nextIdxRef.current += 1;
+        setVisible((v) => [v[0]!, v[1]!, nextFood]);
+      } else {
+        setVisible((v) => [v[2]!, v[0]!, v[1]!]);
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, [pool, reduce]);
+
   return (
-    <div className="flex gap-2.5 items-center py-1.5">
-      <div className="w-10 h-10 rounded-xl" style={{ background: tone, opacity: 0.18 }} />
-      <div className="flex-1">
-        <p className="text-[12px] font-semibold leading-tight">{name}</p>
-        <p className="text-[10px] text-[var(--color-text-muted)] leading-tight">{amount}</p>
-      </div>
+    <div className="bg-white border border-[var(--color-border)] rounded-2xl p-3 overflow-hidden">
+      <AnimatePresence mode="popLayout" initial={false}>
+        {visible.map((food) => (
+          <motion.div
+            key={food.id}
+            layout
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -22, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 22, scale: 0.96 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="flex gap-2.5 items-center py-1.5"
+          >
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--color-surface-muted)]">
+              <Image
+                src={food.photo}
+                alt={food.alt}
+                fill
+                sizes="40px"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold leading-tight truncate">{food.name}</p>
+              <p className="text-[10px] text-[var(--color-text-muted)] leading-tight truncate">
+                {food.amount}
+              </p>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
