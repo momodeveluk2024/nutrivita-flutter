@@ -8,7 +8,7 @@ export default function AboutPage() {
       <header className="pt-40 pb-24">
         <div className="mx-auto max-w-3xl px-6">
           <RevealOnView>
-            <Eyebrow>About Nutrimate</Eyebrow>
+            <Eyebrow>About NV</Eyebrow>
             <h1 className="display text-[clamp(48px,7vw,104px)] mt-6 leading-[0.95]">
               Honest tools for a quiet kind of health.
             </h1>
@@ -20,7 +20,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-3xl px-6">
           <RevealOnView>
             <blockquote className="display text-[clamp(28px,4vw,48px)] leading-[1.15] text-[var(--color-text)]">
-              &ldquo;The best tracker is the one you forget you&apos;re using. Nutrimate is built to fade into your routine within a week.&rdquo;
+              &ldquo;The best tracker is the one you forget you&apos;re using. NV is built to fade into your routine within a week.&rdquo;
             </blockquote>
             <p className="eyebrow mt-8">— Internal product principle</p>
           </RevealOnView>

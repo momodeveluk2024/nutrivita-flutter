@@ -39,7 +39,7 @@ export function FeaturesGrid() {
               className="display-sans mt-5 leading-[0.95] text-balance"
               style={{ fontSize: "clamp(36px, 6vw, 84px)", letterSpacing: "-0.03em" }}
             >
-              Six things Nutrimate does,{" "}
+              Six things NV does,{" "}
               <span className="font-display italic font-semibold text-[var(--color-accent-deep)]">
                 with care.
               </span>

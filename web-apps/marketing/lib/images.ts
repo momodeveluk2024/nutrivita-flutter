@@ -56,22 +56,3 @@ export const proteinNatureGallery = [photos[3], photos[0], photos[7], photos[5],
 // vitamin imagery — used by the new VitaminGallery section
 export const vitaminGallery  = vitaminPhotos;
 export const heroCapsule     = vitaminPhotos[2]; // amber gel — warmest, lifts the hero corner
-
-// Meal items rotated through the phone mockup's "today" list. Each entry
-// pairs an Unsplash food photo with a realistic logged-meal serving.
-export type PhoneMeal = {
-  id: string;
-  name: string;
-  amount: string;
-  photo: string;
-  alt: string;
-};
-
-export const phoneMealPool: PhoneMeal[] = [
-  { id: "salmon",    name: "Salmon, Atlantic", amount: "120 g · 264 kcal", photo: photos[3].url, alt: photos[3].alt },
-  { id: "spinach",   name: "Spinach, raw",     amount: "45 g · 11 kcal",   photo: photos[6].url, alt: photos[6].alt },
-  { id: "yogurt",    name: "Greek yogurt",     amount: "170 g · 100 kcal", photo: photos[4].url, alt: photos[4].alt },
-  { id: "almonds",   name: "Almonds",          amount: "30 g · 173 kcal",  photo: photos[7].url, alt: photos[7].alt },
-  { id: "avocado",   name: "Avocado",          amount: "1 medium · 234 kcal", photo: photos[5].url, alt: photos[5].alt },
-  { id: "berries",   name: "Berries, mixed",   amount: "100 g · 57 kcal",  photo: photos[8].url, alt: photos[8].alt },
-];

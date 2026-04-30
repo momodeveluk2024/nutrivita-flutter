@@ -20,17 +20,15 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Nutrimate — Know what's actually in your meals",
+  title: "NutriVita — Know what's actually in your meals",
   description:
-    "Nutrimate tracks the vitamins, minerals and macros in your meals using USDA dietary references. Available on iOS and Android.",
-  metadataBase: new URL("https://nutrimate.app"),
-  icons: { icon: "/logo.png", apple: "/logo.png" },
+    "NV tracks the vitamins, minerals and macros in your meals using USDA dietary references. Available on iOS and Android.",
+  metadataBase: new URL("https://nv.app"),
   openGraph: {
-    title: "Nutrimate — Know what's actually in your meals",
+    title: "NutriVita — Know what's actually in your meals",
     description:
       "A nutrition tracker built around vitamins and minerals — not just calories.",
     type: "website",
-    images: ["/logo.png"],
   },
 };
 

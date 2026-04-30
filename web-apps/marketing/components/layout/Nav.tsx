@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { Button } from "../primitives/Button";
@@ -39,17 +38,10 @@ export function Nav() {
     >
       <nav className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="relative w-9 h-9 grid place-items-center rounded-[10px] group-hover:scale-95 transition-transform">
-            <Image
-              src="/logo.png"
-              alt="Nutrimate logo"
-              width={36}
-              height={36}
-              className="object-contain"
-              priority
-            />
+          <span className="grid place-items-center w-8 h-8 rounded-[10px] bg-[var(--color-accent)] text-white font-extrabold text-sm tracking-tighter group-hover:scale-95 transition-transform">
+            NV
           </span>
-          <span className="font-semibold tracking-tight">Nutrimate</span>
+          <span className="font-semibold tracking-tight">NutriVita</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-9">
@@ -65,7 +57,7 @@ export function Nav() {
         </div>
 
         <Button href="/download" variant="ghost" size="sm">
-          Get Nutrimate →
+          Get NV →
         </Button>
       </nav>
     </motion.header>

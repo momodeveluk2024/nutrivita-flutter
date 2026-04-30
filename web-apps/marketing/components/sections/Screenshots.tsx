@@ -70,7 +70,7 @@ function PhoneFrame({
         </div>
       )}
       <div className="absolute bottom-6 left-6 right-6 text-white">
-        <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Nutrimate</p>
+        <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">NV</p>
         <p className="text-lg font-semibold tracking-tight mt-0.5">{caption}</p>
       </div>
     </div>

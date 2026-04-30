@@ -220,7 +220,7 @@ export function VitaminGallery() {
         </div>
 
         {/* ================= MAIN STAGE ================= */}
-        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl px-5 sm:px-8 py-3 md:py-7 grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-12 items-stretch">
+        <main className="relative z-10 flex-1 mx-auto w-full max-w-7xl px-5 sm:px-8 py-5 md:py-7 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-stretch">
           {/* LEFT — vertical thumbnail rail (lg) */}
           <aside className="hidden lg:flex lg:col-span-1 flex-col items-center justify-center gap-4">
             {captions.map((cap, i) => {
@@ -275,9 +275,11 @@ export function VitaminGallery() {
 
           {/* CENTER — recipe-book card deck */}
           <div className="lg:col-span-6 relative">
-            <PhotoStage
+            <PhotoDeck
+              active={active}
               activeCaption={activeCaption}
               activePhoto={activePhoto}
+              captions={captions}
               reduce={reduce ?? false}
             />
           </div>
@@ -293,15 +295,15 @@ export function VitaminGallery() {
                 transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               >
                 {/* Big tabular index */}
-                <div className="flex items-baseline gap-2 leading-none mb-2 sm:mb-3">
+                <div className="flex items-baseline gap-2 leading-none mb-3">
                   <span
-                    className="display-sans tabular text-[44px] sm:text-[88px] lg:text-[112px] leading-[0.85] font-bold"
+                    className="display-sans tabular text-[64px] sm:text-[88px] lg:text-[112px] leading-[0.85] font-bold"
                     style={{ color: activeCaption.hue, letterSpacing: "-0.06em" }}
                   >
                     {String(active + 1).padStart(2, "0")}
                   </span>
                   <span
-                    className="display-sans tabular text-[14px] sm:text-[22px] opacity-30 font-bold"
+                    className="display-sans tabular text-[18px] sm:text-[22px] opacity-30 font-bold"
                     style={{ letterSpacing: "-0.04em" }}
                   >
                     / {String(captions.length).padStart(2, "0")}
@@ -310,7 +312,7 @@ export function VitaminGallery() {
 
                 {/* Name */}
                 <h3
-                  className="display text-[30px] sm:text-[56px] lg:text-[72px] leading-[0.95] text-[var(--color-text)] text-balance"
+                  className="display text-[40px] sm:text-[56px] lg:text-[72px] leading-[0.95] text-[var(--color-text)] text-balance"
                   style={{ letterSpacing: "-0.02em" }}
                 >
                   {activeCaption.kicker}
@@ -318,19 +320,19 @@ export function VitaminGallery() {
                 </h3>
 
                 {/* Caption */}
-                <p className="mt-3 sm:mt-5 text-[13px] sm:text-base lg:text-[17px] leading-snug sm:leading-relaxed text-[var(--color-text-muted)] max-w-md">
+                <p className="mt-5 text-[15px] sm:text-base lg:text-[17px] leading-relaxed text-[var(--color-text-muted)] max-w-md">
                   {activeCaption.line}
                 </p>
 
                 {/* Hairline divider */}
                 <div
                   aria-hidden
-                  className="my-3 sm:my-6 h-px w-12 bg-[var(--color-border)]"
+                  className="my-6 h-px w-12 bg-[var(--color-border)]"
                   style={{ background: activeCaption.hue, opacity: 0.6 }}
                 />
 
                 {/* Nutrient grid */}
-                <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5 sm:gap-y-4 max-w-md">
+                <ul className="grid grid-cols-2 gap-x-5 gap-y-4 max-w-md">
                   {activeCaption.nutrients.map((n, i) => (
                     <motion.li
                       key={n.label}
@@ -439,29 +441,33 @@ export function VitaminGallery() {
   );
 }
 
-/* ───────── Editorial gallery-print stage ─────────
-   Single hero photo treated like a framed print: a coloured matte mounts
-   behind it, the photo breathes (Ken Burns), and changes wipe in via a
-   horizontal clip-path mask — no peek cards, no blur, no flip. */
-function PhotoStage({
+/* ───────── Card-deck flip stage ─────────
+   Stack of recipe-book pages: 2 photos peek behind the active one.
+   Active card page-turns off (rotateY around its left edge) on change.
+   Whole deck tilts subtly toward the cursor for tactile parallax. */
+function PhotoDeck({
+  active,
   activeCaption,
   activePhoto,
+  captions,
   reduce,
 }: {
+  active: number;
   activeCaption: Caption;
   activePhoto: (typeof proteinNatureGallery)[number];
+  captions: Caption[];
   reduce: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const tiltX = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), {
+  const tiltX = useSpring(useTransform(my, [-0.5, 0.5], [6, -6]), {
     stiffness: 140,
     damping: 18,
     mass: 0.4,
   });
-  const tiltY = useSpring(useTransform(mx, [-0.5, 0.5], [-6, 6]), {
+  const tiltY = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), {
     stiffness: 140,
     damping: 18,
     mass: 0.4,
@@ -479,12 +485,14 @@ function PhotoStage({
     my.set(0);
   };
 
+  const peekOffsets = [2, 1] as const;
+
   return (
     <div
       ref={wrapRef}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      className="relative h-full w-full lg:min-h-0 aspect-[5/3] sm:aspect-[5/4] lg:aspect-auto"
+      className="relative h-full w-full min-h-[300px] sm:min-h-[400px] lg:min-h-0 aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto"
       style={{ perspective: 1800 }}
     >
       <motion.div
@@ -495,97 +503,98 @@ function PhotoStage({
           transformStyle: "preserve-3d",
         }}
       >
-        {/* Coloured matte mounted behind the print, offset like a gallery frame */}
-        <motion.div
-          aria-hidden
-          className="absolute inset-0 rounded-[24px]"
-          animate={{ backgroundColor: activeCaption.bgHue }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            transform: "translate(20px, 20px) rotate(1.4deg)",
-            opacity: 0.75,
-            boxShadow: "0 24px 48px -28px rgba(19,26,22,0.35)",
-          }}
-        />
-
-        {/* Photo card */}
-        <div
-          className="absolute inset-0 overflow-hidden rounded-2xl bg-[var(--color-surface)]"
-          style={{
-            boxShadow:
-              "0 50px 100px -50px rgba(19,26,22,0.45), 0 8px 24px -12px rgba(19,26,22,0.18), inset 0 0 0 1px rgba(255,255,255,0.4)",
-          }}
-        >
-          <AnimatePresence mode="popLayout">
+        {peekOffsets.map((offset) => {
+          const idx = (active + offset) % captions.length;
+          const ph = proteinNatureGallery[idx] ?? proteinNatureGallery[0];
+          return (
             <motion.div
-              key={activeCaption.kicker}
-              className="absolute inset-0"
-              initial={
-                reduce
-                  ? { clipPath: "inset(0% 0% 0% 0%)" }
-                  : { clipPath: "inset(0% 100% 0% 0%)" }
-              }
-              animate={{ clipPath: "inset(0% 0% 0% 0%)" }}
-              exit={
-                reduce
-                  ? { opacity: 0 }
-                  : { clipPath: "inset(0% 0% 0% 100%)" }
-              }
-              transition={{ duration: 0.85, ease: [0.65, 0, 0.35, 1] }}
+              key={`peek-slot-${offset}`}
+              className="absolute inset-0 overflow-hidden rounded-2xl"
+              animate={{
+                x: offset * 14,
+                y: offset * 10,
+                rotate: offset * 2.2,
+                scale: 1 - offset * 0.04,
+                opacity: 1 - offset * 0.32,
+              }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                boxShadow:
+                  "0 30px 60px -30px rgba(19,26,22,0.35), inset 0 0 0 1px rgba(255,255,255,0.3)",
+                zIndex: -offset,
+              }}
             >
-              {/* Ken Burns: slow drift + zoom while idle */}
-              <motion.div
-                className="absolute inset-0"
-                animate={
-                  reduce
-                    ? {}
-                    : {
-                        scale: [1.04, 1.1, 1.04],
-                        x: [0, -10, 0],
-                        y: [0, 6, 0],
-                      }
-                }
-                transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Image
-                  src={activePhoto.url}
-                  alt={activePhoto.alt}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 600px"
-                  className="object-cover"
-                  priority
-                />
-              </motion.div>
-
-              <div
-                aria-hidden
-                className="absolute inset-x-0 bottom-0 h-1/3"
-                style={{
-                  background:
-                    "linear-gradient(to top, rgba(19,26,22,0.55) 0%, rgba(19,26,22,0.0) 100%)",
-                }}
+              <Image
+                src={ph.url}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 90vw, 600px"
+                className="object-cover"
               />
-              <div className="absolute left-4 bottom-4 right-4 flex items-end justify-between gap-3 text-white">
-                <span className="eyebrow text-[10px] tracking-[0.18em] text-white/85">
-                  Food · {activeCaption.kicker}
-                </span>
-                <span
-                  className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur"
-                  style={{
-                    background: "rgba(255,255,255,0.18)",
-                    color: "white",
-                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-                  }}
-                >
-                  {activeCaption.serving}
-                </span>
-              </div>
+              <div className="absolute inset-0 bg-[var(--color-bg)]/25" />
             </motion.div>
-          </AnimatePresence>
-        </div>
+          );
+        })}
+
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={activeCaption.kicker}
+            className="absolute inset-0 overflow-hidden rounded-2xl"
+            style={{
+              transformOrigin: "left center",
+              transformStyle: "preserve-3d",
+              boxShadow:
+                "0 50px 100px -50px rgba(19,26,22,0.45), 0 8px 24px -12px rgba(19,26,22,0.18), inset 0 0 0 1px rgba(255,255,255,0.4)",
+              zIndex: 1,
+            }}
+            initial={
+              reduce
+                ? { opacity: 1, rotateY: 0, x: 0 }
+                : { opacity: 0, rotateY: 55, x: 24 }
+            }
+            animate={{ opacity: 1, rotateY: 0, x: 0 }}
+            exit={
+              reduce
+                ? { opacity: 0 }
+                : { opacity: 0, rotateY: -155, x: -8 }
+            }
+            transition={{ duration: 0.55, ease: [0.65, 0, 0.35, 1] }}
+          >
+            <Image
+              src={activePhoto.url}
+              alt={activePhoto.alt}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 600px"
+              className="object-cover"
+              priority
+            />
+            <div
+              aria-hidden
+              className="absolute inset-x-0 bottom-0 h-1/3"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(19,26,22,0.55) 0%, rgba(19,26,22,0.0) 100%)",
+              }}
+            />
+            <div className="absolute left-4 bottom-4 right-4 flex items-end justify-between gap-3 text-white">
+              <span className="eyebrow text-[10px] tracking-[0.18em] text-white/85">
+                Food · {activeCaption.kicker}
+              </span>
+              <span
+                className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] backdrop-blur"
+                style={{
+                  background: "rgba(255,255,255,0.18)",
+                  color: "white",
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                }}
+              >
+                {activeCaption.serving}
+              </span>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </motion.div>
 
-      {/* Floating hue chip — outside the tilt so it stays steady */}
       <motion.div
         className="absolute -top-3 -left-3 z-20 hidden sm:flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em]"
         animate={{ color: activeCaption.hue }}

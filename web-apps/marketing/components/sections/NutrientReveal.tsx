@@ -162,19 +162,6 @@ function Stage({
   // Slow rotation of the entire orbit (always-on micro-motion)
   const orbitRotate = useTransform(progress, [0, 1], reduce ? [0, 0] : [0, 360]);
 
-  // Mobile sizing — orbital pills and animate values are pixel based, so we
-  // need state to swap them per breakpoint (CSS clamp can't drive Framer
-  // animate numbers without losing interpolation).
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  const orbitSize = isMobile ? 42 : 56;
-  const orbitFont = isMobile ? 11 : 13;
-
   return (
     <div className="relative aspect-square w-full max-w-[640px] mx-auto">
       {/* Decorative concentric orbit lines */}
@@ -226,9 +213,9 @@ function Stage({
               }}
               initial={false}
               animate={{
-                width: isActive ? 0 : orbitSize,
-                height: isActive ? 0 : orbitSize,
-                fontSize: isActive ? 0 : orbitFont,
+                width: isActive ? 0 : 56,
+                height: isActive ? 0 : 56,
+                fontSize: isActive ? 0 : 13,
                 opacity: isActive ? 0 : 1,
                 scale: isActive ? 0 : 1,
               }}
@@ -256,9 +243,9 @@ function Stage({
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
               className="grid place-items-center rounded-full font-bold tracking-tighter"
               style={{
-                width: "min(58vw, 40vh, 320px)",
-                height: "min(58vw, 40vh, 320px)",
-                fontSize: "min(24vw, 15vh, 124px)",
+                width: "min(40vh, 320px)",
+                height: "min(40vh, 320px)",
+                fontSize: "min(15vh, 124px)",
                 background: hue.bg,
                 color: hue.fill,
                 boxShadow: `0 50px 120px -28px ${hue.fill}55, inset 0 0 0 1px ${hue.fill}10`,

@@ -2,15 +2,15 @@
 // Verbatim onboarding copy from myapplication/lib/screens/onboarding.dart:16-32.
 
 export const brand = {
-  name: "Nutrimate",
-  longName: "Nutrimate",
+  name: "NV",
+  longName: "NutriVita",
   tagline: "Know what's actually in your meals.",
 };
 
 export const hero = {
   eyebrow: "Nutrition tracker",
   headline: "Know what's actually\nin your meals.",
-  sub: "Nutrimate reads the vitamins, minerals and macros in everything you eat — using USDA dietary references — so you stop guessing and start seeing the gaps.",
+  sub: "NV reads the vitamins, minerals and macros in everything you eat — using USDA dietary references — so you stop guessing and start seeing the gaps.",
 };
 
 export const stats = [
@@ -29,7 +29,7 @@ export const trust = [
 export const features = [
   {
     title: "Track meals, not macros",
-    body: "Log a meal in two taps. Nutrimate does the per-100g math against USDA values automatically.",
+    body: "Log a meal in two taps. NV does the per-100g math against USDA values automatically.",
   },
   {
     title: "Vitamin breakdown",
@@ -45,7 +45,7 @@ export const features = [
   },
   {
     title: "Daily and weekly goals",
-    body: "Set a target per nutrient. Nutrimate shows how often you hit it — without judgment.",
+    body: "Set a target per nutrient. NV shows how often you hit it — without judgment.",
   },
   {
     title: "Works offline",
@@ -57,7 +57,7 @@ export const howItWorks = [
   {
     step: "01",
     title: "Set your reference",
-    body: "Tell Nutrimate your sex and life stage once. We use NIH-published DRI values to calibrate the gauges.",
+    body: "Tell NV your sex and life stage once. We use NIH-published DRI values to calibrate the gauges.",
   },
   {
     step: "02",
@@ -103,7 +103,7 @@ export const principles = [
 ];
 
 export const download = {
-  eyebrow: "Get Nutrimate",
+  eyebrow: "Get NV",
   headline: "Free. No account required to try.",
   sub: "Available on iPhone, Android phones and tablets. Sync across devices when you create an account.",
 };

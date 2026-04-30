@@ -22,7 +22,7 @@ export function HowItWorks() {
               Three steps, then it disappears.
             </h2>
             <p className="mt-6 text-lg text-[var(--color-text-muted)] leading-relaxed">
-              The best tracker is the one you forget you&apos;re using. Nutrimate is designed to fade into your routine within a week.
+              The best tracker is the one you forget you&apos;re using. NV is designed to fade into your routine within a week.
             </p>
           </div>
         </RevealOnView>
