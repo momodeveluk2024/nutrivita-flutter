@@ -47,24 +47,26 @@ type User struct {
 }
 
 type Profile struct {
-	UserID          uuid.UUID       `json:"user_id"`
-	DisplayName     string          `json:"display_name"`
-	AvatarURL       *string         `json:"avatar_url,omitempty"`
-	Sex             *string         `json:"sex,omitempty"`
-	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
-	HeightCM        *float64        `json:"height_cm,omitempty"`
-	WeightKG        *float64        `json:"weight_kg,omitempty"`
-	ActivityLevel   *string         `json:"activity_level,omitempty"`
-	PregnancyStatus *string         `json:"pregnancy_status,omitempty"`
-	DietaryPattern  *string         `json:"dietary_pattern,omitempty"`
-	Allergens       []string        `json:"allergens"`
-	Goals           []string        `json:"goals"`
-	Units           string          `json:"units"`
-	Locale          string          `json:"locale"`
-	Timezone        string          `json:"timezone"`
-	Preferences     json.RawMessage `json:"preferences"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	UserID                uuid.UUID       `json:"user_id"`
+	DisplayName           string          `json:"display_name"`
+	AvatarURL             *string         `json:"avatar_url,omitempty"`
+	Sex                   *string         `json:"sex,omitempty"`
+	DateOfBirth           *string         `json:"date_of_birth,omitempty"`
+	HeightCM              *float64        `json:"height_cm,omitempty"`
+	WeightKG              *float64        `json:"weight_kg,omitempty"`
+	ActivityLevel         *string         `json:"activity_level,omitempty"`
+	PregnancyStatus       *string         `json:"pregnancy_status,omitempty"`
+	DietaryPattern        *string         `json:"dietary_pattern,omitempty"`
+	Allergens             []string        `json:"allergens"`
+	Goals                 []string        `json:"goals"`
+	Units                 string          `json:"units"`
+	Locale                string          `json:"locale"`
+	Timezone              string          `json:"timezone"`
+	Preferences           json.RawMessage `json:"preferences"`
+	OnboardingCompletedAt *time.Time      `json:"onboarding_completed_at,omitempty"`
+	NeedsOnboarding       bool            `json:"needs_onboarding"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
 }
 
 type Session struct {
@@ -75,26 +77,28 @@ type Session struct {
 }
 
 type Me struct {
-	ID              uuid.UUID       `json:"id"`
-	Email           string          `json:"email"`
-	Role            string          `json:"role"`
-	EmailVerifiedAt *time.Time      `json:"email_verified_at,omitempty"`
-	CreatedAt       time.Time       `json:"created_at"`
-	DisplayName     string          `json:"display_name"`
-	AvatarURL       *string         `json:"avatar_url,omitempty"`
-	Sex             *string         `json:"sex,omitempty"`
-	DateOfBirth     *string         `json:"date_of_birth,omitempty"`
-	HeightCM        *float64        `json:"height_cm,omitempty"`
-	WeightKG        *float64        `json:"weight_kg,omitempty"`
-	ActivityLevel   *string         `json:"activity_level,omitempty"`
-	PregnancyStatus *string         `json:"pregnancy_status,omitempty"`
-	DietaryPattern  *string         `json:"dietary_pattern,omitempty"`
-	Allergens       []string        `json:"allergens"`
-	Goals           []string        `json:"goals"`
-	Units           string          `json:"units"`
-	Locale          string          `json:"locale"`
-	Timezone        string          `json:"timezone"`
-	Preferences     json.RawMessage `json:"preferences"`
+	ID                    uuid.UUID       `json:"id"`
+	Email                 string          `json:"email"`
+	Role                  string          `json:"role"`
+	EmailVerifiedAt       *time.Time      `json:"email_verified_at,omitempty"`
+	CreatedAt             time.Time       `json:"created_at"`
+	DisplayName           string          `json:"display_name"`
+	AvatarURL             *string         `json:"avatar_url,omitempty"`
+	Sex                   *string         `json:"sex,omitempty"`
+	DateOfBirth           *string         `json:"date_of_birth,omitempty"`
+	HeightCM              *float64        `json:"height_cm,omitempty"`
+	WeightKG              *float64        `json:"weight_kg,omitempty"`
+	ActivityLevel         *string         `json:"activity_level,omitempty"`
+	PregnancyStatus       *string         `json:"pregnancy_status,omitempty"`
+	DietaryPattern        *string         `json:"dietary_pattern,omitempty"`
+	Allergens             []string        `json:"allergens"`
+	Goals                 []string        `json:"goals"`
+	Units                 string          `json:"units"`
+	Locale                string          `json:"locale"`
+	Timezone              string          `json:"timezone"`
+	Preferences           json.RawMessage `json:"preferences"`
+	OnboardingCompletedAt *time.Time      `json:"onboarding_completed_at,omitempty"`
+	NeedsOnboarding       bool            `json:"needs_onboarding"`
 }
 
 type CreateUserParams struct {
@@ -383,7 +387,9 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		    p.units,
 		    p.locale,
 		    p.timezone,
-		    p.preferences
+		    p.preferences,
+		    p.onboarding_completed_at,
+		    p.onboarding_completed_at IS NULL
 		FROM users u
 		JOIN user_profiles p ON p.user_id = u.id
 		WHERE u.id = $1 AND u.deleted_at IS NULL AND u.suspended_at IS NULL
@@ -408,6 +414,8 @@ func (s *Store) GetMe(ctx context.Context, userID uuid.UUID) (Me, error) {
 		&me.Locale,
 		&me.Timezone,
 		&me.Preferences,
+		&me.OnboardingCompletedAt,
+		&me.NeedsOnboarding,
 	)
 	return me, err
 }

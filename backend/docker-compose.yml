@@ -17,7 +17,6 @@ services:
       retries: 10
 
   migrate:
-    profiles: ["api"]
     build:
       context: .
     env_file:
@@ -30,7 +29,6 @@ services:
     entrypoint: ["/app/migrate", "up"]
 
   api:
-    profiles: ["api"]
     build:
       context: .
     env_file:
@@ -69,14 +67,17 @@ services:
     depends_on:
       - api
 
-  flutter-web:
-    build:
-      context: ..
-      dockerfile: Dockerfile.web
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: nutrivita-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@nutrivita.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "3004:80"
+      - "5050:80"
     depends_on:
-      - api
+      postgres:
+        condition: service_healthy
 
 volumes:
   nutrivita-postgres-data:

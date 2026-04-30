@@ -7,6 +7,7 @@ import '../screens/intro_video.dart';
 import '../screens/onboarding.dart';
 import '../screens/password_reset.dart';
 import '../screens/profile_settings.dart';
+import '../screens/profile_setup.dart';
 import '../screens/search.dart';
 import '../screens/sign_in.dart';
 import '../screens/sign_up.dart';
@@ -15,35 +16,65 @@ import '../screens/verify_email.dart';
 import '../screens/vitamin_detail.dart';
 import 'providers/auth_provider.dart';
 
+const _authPages = {
+  '/',
+  '/welcome',
+  '/onboarding',
+  '/sign-up',
+  '/sign-in',
+  '/forgot-password',
+  '/reset-password',
+};
+
+String? redirectForAuthState({
+  required String path,
+  required bool initialized,
+  required bool isAuthenticated,
+  required bool needsOnboarding,
+}) {
+  if (!initialized) {
+    return path == '/' ? null : '/';
+  }
+  if (!isAuthenticated &&
+      (path.startsWith('/app') || path == '/profile-setup')) {
+    return '/sign-in';
+  }
+  if (!isAuthenticated) {
+    return null;
+  }
+  if (needsOnboarding && path != '/profile-setup') {
+    if (path.startsWith('/app') || _authPages.contains(path)) {
+      return '/profile-setup';
+    }
+  }
+  if (!needsOnboarding && path == '/profile-setup') {
+    return '/app';
+  }
+  if (_authPages.contains(path)) {
+    return needsOnboarding ? '/profile-setup' : '/app';
+  }
+  return null;
+}
+
 GoRouter buildRouter(AuthProvider auth) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: auth,
     redirect: (context, state) {
       final path = state.uri.path;
-      final authPages = {
-        '/',
-        '/welcome',
-        '/onboarding',
-        '/sign-up',
-        '/sign-in',
-        '/forgot-password',
-        '/reset-password',
-      };
-      if (!auth.initialized) {
-        return path == '/' ? null : '/';
-      }
-      if (!auth.isAuthenticated && path.startsWith('/app')) {
-        return '/sign-in';
-      }
-      if (auth.isAuthenticated && authPages.contains(path)) {
-        return '/app';
-      }
-      return null;
+      return redirectForAuthState(
+        path: path,
+        initialized: auth.initialized,
+        isAuthenticated: auth.isAuthenticated,
+        needsOnboarding: auth.user?.needsOnboarding ?? false,
+      );
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const IntroVideoScreen()),
-      GoRoute(path: '/welcome', builder: (context, state) => const SplashScreen()),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
@@ -51,6 +82,10 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(
         path: '/sign-up',
         builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/profile-setup',
+        builder: (context, state) => const ProfileSetupScreen(),
       ),
       GoRoute(
         path: '/sign-in',

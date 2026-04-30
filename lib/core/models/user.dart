@@ -20,6 +20,8 @@ class AppUser {
     this.allergens = const [],
     this.goals = const [],
     this.preferences = const {},
+    this.onboardingCompletedAt,
+    this.needsOnboarding = false,
   });
 
   final String id;
@@ -40,6 +42,8 @@ class AppUser {
   final List<String> allergens;
   final List<String> goals;
   final Map<String, dynamic> preferences;
+  final DateTime? onboardingCompletedAt;
+  final bool needsOnboarding;
 
   bool get isEmailVerified => emailVerifiedAt != null;
   String get appearance => preferences['appearance'] as String? ?? 'light';
@@ -98,6 +102,10 @@ class AppUser {
       allergens: _stringList(json['allergens']),
       goals: _stringList(json['goals']),
       preferences: _preferences(json['preferences']),
+      onboardingCompletedAt: json['onboarding_completed_at'] == null
+          ? null
+          : DateTime.tryParse(json['onboarding_completed_at'] as String),
+      needsOnboarding: json['needs_onboarding'] as bool? ?? false,
       emailVerifiedAt: json['email_verified_at'] == null
           ? null
           : DateTime.tryParse(json['email_verified_at'] as String),

@@ -1,13 +1,26 @@
 import 'package:flutter/foundation.dart';
 
 class ApiEndpoints {
+  // To override at run time, pass:
+  //   --dart-define=NUTRIVITA_API_URL=http://<your-LAN-IP>:8080/v1
+  // Physical Android device on USB? Either pass the LAN URL above, or run
+  //   adb reverse tcp:8080 tcp:8080
+  // and the device's localhost will hit the host machine.
+  // The emulator helper 10.0.2.2 is only reachable from the Android emulator,
+  // so we opt into it via ANDROID_EMULATOR=true rather than default to it.
   static String get baseUrl {
     const configuredUrl = String.fromEnvironment('NUTRIVITA_API_URL');
     if (configuredUrl.isNotEmpty) {
       return _withoutTrailingSlash(configuredUrl);
     }
 
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    const isEmulator = bool.fromEnvironment(
+      'ANDROID_EMULATOR',
+      defaultValue: true,
+    );
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        isEmulator) {
       return 'http://10.0.2.2:8080/v1';
     }
 
@@ -25,6 +38,7 @@ class ApiEndpoints {
   static const meProfile = '/me/profile';
   static const meAvatar = '/me/avatar';
   static const mePreferences = '/me/preferences';
+  static const meOnboardingComplete = '/me/onboarding/complete';
   static const streak = '/me/streak';
   static const foods = '/foods';
   static const logs = '/logs';

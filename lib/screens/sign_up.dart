@@ -56,10 +56,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created. Verify your email when ready.'),
+          content: Text('Welcome. Let us tailor things to you.'),
         ),
       );
-      context.go('/verify-email');
+      context.go('/profile-setup');
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

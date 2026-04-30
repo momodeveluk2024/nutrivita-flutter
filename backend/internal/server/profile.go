@@ -98,6 +98,16 @@ func (a *App) handleUpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, me)
 }
 
+func (a *App) handleCompleteOnboarding(w http.ResponseWriter, r *http.Request) {
+	claims := authFromContext(r.Context())
+	me, err := a.store.CompleteOnboarding(r.Context(), claims.UserID)
+	if err != nil {
+		writeProfileUpdateError(a, w, "complete onboarding", err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, me)
+}
+
 func (a *App) handleUpdateAvatar(w http.ResponseWriter, r *http.Request) {
 	claims := authFromContext(r.Context())
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarUploadBytes)

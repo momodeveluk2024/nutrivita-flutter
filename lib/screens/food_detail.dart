@@ -79,7 +79,8 @@ class _FoodDetailBody extends StatelessWidget {
     final provider = context.watch<FoodProvider>();
     final isFavorite = provider.isFavorite(food.id);
     final isReferenceProfile = food.source.contains('percent Daily Value');
-    final canLog = food.breakdown.any((nutrient) => nutrient.amountPer100G > 0);
+    final canLog = food.breakdown.any((nutrient) =>
+        nutrient.amountPer100G > 0 || (nutrient.driPercent ?? 0) > 0);
 
     return CustomScrollView(
       slivers: [

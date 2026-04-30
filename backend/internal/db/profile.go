@@ -71,6 +71,19 @@ func (s *Store) UpdatePreferences(ctx context.Context, params UpdatePreferencesP
 	return s.GetMe(ctx, params.UserID)
 }
 
+func (s *Store) CompleteOnboarding(ctx context.Context, userID uuid.UUID) (Me, error) {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE user_profiles
+		SET onboarding_completed_at = COALESCE(onboarding_completed_at, now()),
+		    updated_at = now()
+		WHERE user_id = $1
+	`, userID)
+	if err != nil {
+		return Me{}, err
+	}
+	return s.GetMe(ctx, userID)
+}
+
 func (s *Store) UpdateAvatar(ctx context.Context, params UpdateAvatarParams) (Me, error) {
 	_, err := s.pool.Exec(ctx, `
 		UPDATE user_profiles

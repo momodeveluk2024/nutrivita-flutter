@@ -1085,13 +1085,15 @@ class NVPrimaryButton extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             if (leadingIcon != null) ...[
               Icon(leadingIcon, size: 18),
               const SizedBox(width: 8),
             ],
-            Text(label),
+            Flexible(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
             if (trailingIcon != null) ...[
               const SizedBox(width: 8),
               Icon(trailingIcon, size: 16),

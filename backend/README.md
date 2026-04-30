@@ -27,7 +27,9 @@ The API listens on `http://localhost:8080`.
 - `POST /v1/auth/logout`
 - `GET /v1/me`
 - `PATCH /v1/me/profile`
+- `POST /v1/me/avatar`
 - `PATCH /v1/me/preferences`
+- `PATCH /v1/me/onboarding/complete`
 - `GET /v1/me/streak`
 - `GET /v1/foods?q=&category=&limit=`
 - `GET /v1/foods/barcode/{barcode}`

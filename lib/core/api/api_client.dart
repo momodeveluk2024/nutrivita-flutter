@@ -132,8 +132,28 @@ class ApiClient {
     if (data is Map && data['error'] is String) {
       return ApiException(data['error'] as String, statusCode: status);
     }
-    if (error.type == DioExceptionType.connectionError) {
-      return const ApiException('Could not connect to the backend.');
+    if (status == 404) {
+      return const ApiException(
+        'Request not found. Restart or update the backend and try again.',
+        statusCode: 404,
+      );
+    }
+    if (status == 401) {
+      return const ApiException('Please sign in again.', statusCode: 401);
+    }
+    if (status != null && status >= 500) {
+      return const ApiException(
+        'The backend had a problem. Please try again.',
+        statusCode: 500,
+      );
+    }
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout) {
+      return ApiException(
+        'Could not reach backend at ${ApiEndpoints.baseUrl}. '
+        'On a USB phone, run: adb reverse tcp:8080 tcp:8080 — '
+        'or pass --dart-define=NUTRIVITA_API_URL=http://<your-PC-LAN-IP>:8080/v1.',
+      );
     }
     return ApiException(error.message ?? 'Request failed', statusCode: status);
   }

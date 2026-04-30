@@ -79,8 +79,8 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Daily command'), findsOneWidget);
-    expect(find.text('Starter recommendations'), findsOneWidget);
-    expect(find.text('Top nutrient gaps'), findsOneWidget);
+    expect(find.text('STARTER · RECOMMENDATIONS'), findsOneWidget);
+    expect(find.text('TOP · NUTRIENT GAPS'), findsOneWidget);
     expect(find.text('12-day streak'), findsOneWidget);
   });
 }

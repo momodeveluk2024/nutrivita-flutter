@@ -172,6 +172,13 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<void> completeOnboarding() async {
+    await _runAuthAction(() async {
+      final response = await _api.patch(ApiEndpoints.meOnboardingComplete);
+      _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
+    });
+  }
+
   Future<void> updateAppearance(String appearance) async {
     final merged = Map<String, dynamic>.from(_user?.preferences ?? const {});
     merged['appearance'] = appearance;

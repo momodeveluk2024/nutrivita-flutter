@@ -102,11 +102,17 @@ void main() {
   testWidgets('Onboarding can be swiped between slides', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
 
-    expect(find.textContaining('Know what'), findsOneWidget);
+    expect(
+      find.textContaining('Know what', findRichText: true),
+      findsOneWidget,
+    );
     await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Built around'), findsOneWidget);
+    expect(
+      find.textContaining('Built around', findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Tracker horizontal strip selects an older date by hand', (

@@ -38,58 +38,56 @@ class _VitaminDetailScreenState extends State<VitaminDetailScreen> {
 
     return Scaffold(
       backgroundColor: c.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            backgroundColor: dark ? hue.fill.withValues(alpha: 0.13) : hue.bg,
+            elevation: 0,
+            pinned: false,
+            floating: true,
+            leading: NVCircleIconButton(
+              icon: Icons.chevron_left,
+              background: c.surface.withValues(alpha: 0.8),
+              foreground: c.text,
+              onTap: () => Navigator.of(context).maybePop(),
+            ),
+            actions: [
+              NVCircleIconButton(
+                icon: Icons.search,
+                background: c.surface.withValues(alpha: 0.8),
+                foreground: c.text,
+                onTap: () => context.push('/app/search'),
+              ),
+              const SizedBox(width: 12),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Container(
               color: dark ? hue.fill.withValues(alpha: 0.13) : hue.bg,
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      NVCircleIconButton(
-                        icon: Icons.chevron_left,
-                        background: c.surface,
-                        foreground: c.text,
-                        onTap: () => Navigator.of(context).maybePop(),
-                      ),
-                      NVCircleIconButton(
-                        icon: Icons.search,
-                        background: c.surface,
-                        foreground: c.text,
-                        onTap: () => context.push('/app/search'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _VitaminHero(nutrient: _nutrient, hue: hue),
-                ],
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: _VitaminHero(nutrient: _nutrient, hue: hue),
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _DailyTargetCard(nutrient: _nutrient, hue: hue),
-                  const SizedBox(height: 14),
-                  _BenefitsCard(nutrient: _nutrient, hue: hue),
-                  const SizedBox(height: 14),
-                  _TopSources(
-                    nutrient: _nutrient,
-                    hue: hue,
-                    sourcesFuture: _sourcesFuture,
-                  ),
-                  const SizedBox(height: 14),
-                  _LowIntakeCard(nutrient: _nutrient),
-                  const SizedBox(height: 8),
-                ],
-              ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList.list(
+              children: [
+                _DailyTargetCard(nutrient: _nutrient, hue: hue),
+                const SizedBox(height: 14),
+                _BenefitsCard(nutrient: _nutrient, hue: hue),
+                const SizedBox(height: 14),
+                _TopSources(
+                  nutrient: _nutrient,
+                  hue: hue,
+                  sourcesFuture: _sourcesFuture,
+                ),
+                const SizedBox(height: 14),
+                _LowIntakeCard(nutrient: _nutrient),
+                const SizedBox(height: 8),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

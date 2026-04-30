@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,12 +31,36 @@ type CreateReminderParams struct {
 }
 
 type Recommendation struct {
-	Code     string    `json:"code"`
-	Name     string    `json:"name"`
-	Message  string    `json:"message"`
-	Percent  *float64  `json:"percent,omitempty"`
-	FoodID   uuid.UUID `json:"food_id"`
-	FoodName string    `json:"food_name"`
+	Code         string    `json:"code"`
+	Name         string    `json:"name"`
+	Message      string    `json:"message"`
+	Percent      *float64  `json:"percent,omitempty"`
+	FoodID       uuid.UUID `json:"food_id"`
+	FoodName     string    `json:"food_name"`
+	FoodImageURL *string   `json:"food_image_url,omitempty"`
+}
+
+type recommendationProfile struct {
+	DietaryPattern string
+	Allergens      []string
+	Goals          []string
+}
+
+type recommendationCandidate struct {
+	Code          string
+	Name          string
+	Percent       *float64
+	FoodID        uuid.UUID
+	FoodName      string
+	FoodImageURL  *string
+	Category      string
+	AmountPer100G float64
+}
+
+type scoredRecommendation struct {
+	recommendation Recommendation
+	score          float64
+	amount         float64
 }
 
 func (s *Store) AddFavorite(ctx context.Context, userID, foodID uuid.UUID) error {
@@ -145,6 +171,15 @@ func (s *Store) DeleteReminder(ctx context.Context, userID, reminderID uuid.UUID
 }
 
 func (s *Store) GetRecommendations(ctx context.Context, userID uuid.UUID, date string) ([]Recommendation, error) {
+	var profile recommendationProfile
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(dietary_pattern, ''), allergens, goals
+		FROM user_profiles
+		WHERE user_id = $1
+	`, userID).Scan(&profile.DietaryPattern, &profile.Allergens, &profile.Goals); err != nil {
+		return nil, err
+	}
+
 	rows, err := s.pool.Query(ctx, `
 		WITH low AS (
 			SELECT
@@ -169,14 +204,17 @@ func (s *Store) GetRecommendations(ctx context.Context, userID uuid.UUID, date s
 			WHERE d.amount IS NOT NULL
 			  AND COALESCE((t.amount / d.amount) * 100, 0) < 80
 			ORDER BY COALESCE((t.amount / d.amount) * 100, 0) ASC
-			LIMIT 5
+			LIMIT 8
 		)
-		SELECT DISTINCT ON (low.code)
+		SELECT
 			low.code,
 			low.name,
 			low.percent,
 			f.id,
-			f.name
+			f.name,
+			f.image_url,
+			f.category,
+			fn.amount_per_100g::float8
 		FROM low
 		JOIN food_nutrients fn ON fn.nutrient_id = low.nutrient_id
 		JOIN foods f ON f.id = fn.food_id AND f.deleted_at IS NULL
@@ -187,14 +225,173 @@ func (s *Store) GetRecommendations(ctx context.Context, userID uuid.UUID, date s
 	}
 	defer rows.Close()
 
-	recommendations := []Recommendation{}
+	candidates := []recommendationCandidate{}
 	for rows.Next() {
-		var recommendation Recommendation
-		if err := rows.Scan(&recommendation.Code, &recommendation.Name, &recommendation.Percent, &recommendation.FoodID, &recommendation.FoodName); err != nil {
+		var candidate recommendationCandidate
+		var percent float64
+		if err := rows.Scan(&candidate.Code, &candidate.Name, &percent, &candidate.FoodID, &candidate.FoodName, &candidate.FoodImageURL, &candidate.Category, &candidate.AmountPer100G); err != nil {
 			return nil, err
 		}
-		recommendation.Message = "You are below target for " + recommendation.Name + ". Try adding " + recommendation.FoodName + "."
-		recommendations = append(recommendations, recommendation)
+		candidate.Percent = &percent
+		candidates = append(candidates, candidate)
 	}
-	return recommendations, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return buildRecommendations(profile, candidates, 5), nil
+}
+
+func buildRecommendations(profile recommendationProfile, candidates []recommendationCandidate, limit int) []Recommendation {
+	if limit <= 0 {
+		return []Recommendation{}
+	}
+	bestByCode := map[string]recommendationCandidate{}
+	for _, candidate := range candidates {
+		if !foodAllowedForProfile(profile, candidate.Category, candidate.FoodName) {
+			continue
+		}
+		current, ok := bestByCode[candidate.Code]
+		if !ok || candidate.AmountPer100G > current.AmountPer100G {
+			bestByCode[candidate.Code] = candidate
+		}
+	}
+
+	scored := make([]scoredRecommendation, 0, len(bestByCode))
+	for _, candidate := range bestByCode {
+		recommendation := Recommendation{
+			Code:         candidate.Code,
+			Name:         candidate.Name,
+			Percent:      candidate.Percent,
+			FoodID:       candidate.FoodID,
+			FoodName:     candidate.FoodName,
+			FoodImageURL: candidate.FoodImageURL,
+		}
+		recommendation.Message = "You are below target for " + recommendation.Name + ". Try adding " + recommendation.FoodName + "."
+		scored = append(scored, scoredRecommendation{
+			recommendation: recommendation,
+			score:          recommendationScore(profile.Goals, candidate.Code, candidate.Percent),
+			amount:         candidate.AmountPer100G,
+		})
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score != scored[j].score {
+			return scored[i].score > scored[j].score
+		}
+		leftPercent := percentValue(scored[i].recommendation.Percent)
+		rightPercent := percentValue(scored[j].recommendation.Percent)
+		if leftPercent != rightPercent {
+			return leftPercent < rightPercent
+		}
+		if scored[i].amount != scored[j].amount {
+			return scored[i].amount > scored[j].amount
+		}
+		return scored[i].recommendation.Name < scored[j].recommendation.Name
+	})
+
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+	recommendations := make([]Recommendation, 0, len(scored))
+	for _, item := range scored {
+		recommendations = append(recommendations, item.recommendation)
+	}
+	return recommendations
+}
+
+func recommendationScore(goals []string, code string, percent *float64) float64 {
+	return 100 - percentValue(percent) + goalBoost(goals, code)
+}
+
+func percentValue(percent *float64) float64 {
+	if percent == nil {
+		return 100
+	}
+	return *percent
+}
+
+func goalBoost(goals []string, code string) float64 {
+	boosts := map[string]map[string]float64{
+		"energy":           {"B12": 30, "B9": 20, "Mg": 15, "Fe": 15, "Protein": 10},
+		"immunity":         {"C": 30, "D": 20, "Zn": 20, "A": 12},
+		"bone health":      {"Ca": 35, "D": 35, "K": 12, "Mg": 10},
+		"heart health":     {"Mg": 25, "K": 15, "B9": 15},
+		"focus":            {"B12": 25, "Mg": 20, "Fe": 10},
+		"fitness":          {"Protein": 30, "Mg": 20, "Fe": 10},
+		"iron support":     {"Fe": 40, "B9": 12, "B12": 12},
+		"better digestion": {"B9": 18, "Mg": 12},
+		"skin & hair":      {"A": 20, "C": 20, "Protein": 12, "Zn": 12},
+		"sleep":            {"Mg": 30, "D": 10},
+	}
+	total := 0.0
+	for _, goal := range goals {
+		goalBoosts := boosts[strings.ToLower(strings.TrimSpace(goal))]
+		total += goalBoosts[code]
+	}
+	return total
+}
+
+func foodAllowedForProfile(profile recommendationProfile, category, foodName string) bool {
+	category = strings.ToLower(strings.TrimSpace(category))
+	name := strings.ToLower(foodName)
+	diet := strings.ToLower(strings.TrimSpace(profile.DietaryPattern))
+
+	switch diet {
+	case "vegan":
+		if categoryIn(category, "meat", "poultry", "seafood", "dairy", "eggs") {
+			return false
+		}
+	case "vegetarian":
+		if categoryIn(category, "meat", "poultry", "seafood") {
+			return false
+		}
+	case "pescatarian":
+		if categoryIn(category, "meat", "poultry") {
+			return false
+		}
+	}
+
+	for _, allergen := range profile.Allergens {
+		switch strings.ToLower(strings.TrimSpace(allergen)) {
+		case "dairy":
+			if category == "dairy" {
+				return false
+			}
+		case "eggs":
+			if category == "eggs" || strings.Contains(name, "egg") {
+				return false
+			}
+		case "soy":
+			if category == "soy" || strings.Contains(name, "soy") || strings.Contains(name, "tofu") || strings.Contains(name, "tempeh") {
+				return false
+			}
+		case "peanuts", "tree nuts":
+			if category == "nuts" || strings.Contains(name, "peanut") || strings.Contains(name, "almond") || strings.Contains(name, "nut") {
+				return false
+			}
+		case "wheat / gluten":
+			if category == "grains" || strings.Contains(name, "wheat") || strings.Contains(name, "gluten") {
+				return false
+			}
+		case "shellfish", "fish":
+			if category == "seafood" {
+				return false
+			}
+		case "sesame":
+			if strings.Contains(name, "sesame") {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func categoryIn(category string, values ...string) bool {
+	for _, value := range values {
+		if category == value {
+			return true
+		}
+	}
+	return false
 }

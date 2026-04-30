@@ -57,6 +57,7 @@ class Recommendation {
     this.percent,
     required this.foodId,
     required this.foodName,
+    this.foodImageUrl,
   });
 
   final String code;
@@ -65,6 +66,7 @@ class Recommendation {
   final double? percent;
   final String foodId;
   final String foodName;
+  final String? foodImageUrl;
 
   factory Recommendation.fromJson(Map<String, dynamic> json) {
     return Recommendation(
@@ -74,6 +76,7 @@ class Recommendation {
       percent: (json['percent'] as num?)?.toDouble(),
       foodId: json['food_id'] as String,
       foodName: json['food_name'] as String,
+      foodImageUrl: json['food_image_url'] as String?,
     );
   }
 }

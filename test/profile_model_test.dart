@@ -23,6 +23,8 @@ void main() {
       'locale': 'en',
       'timezone': 'Asia/Baghdad',
       'preferences': {'appearance': 'dark'},
+      'onboarding_completed_at': '2026-04-30T00:00:00Z',
+      'needs_onboarding': false,
     });
 
     expect(user.sex, 'female');
@@ -36,8 +38,27 @@ void main() {
     expect(user.allergens, ['peanuts']);
     expect(user.goals, ['Immunity', 'Energy']);
     expect(user.appearance, 'dark');
+    expect(user.onboardingCompletedAt, DateTime.parse('2026-04-30T00:00:00Z'));
+    expect(user.needsOnboarding, isFalse);
     expect(user.bodySummary, 'F, 28, 165 cm');
     expect(user.goalsSummary, 'Immunity - Energy');
+  });
+
+  test('AppUser marks new signups as needing onboarding', () {
+    final user = AppUser.fromJson({
+      'id': '019dc1d3-dd22-7cea-85d3-7f8946adde92',
+      'email': 'new@gmail.com',
+      'display_name': 'New User',
+      'units': 'metric',
+      'locale': 'en',
+      'timezone': 'Asia/Baghdad',
+      'preferences': <String, dynamic>{},
+      'onboarding_completed_at': null,
+      'needs_onboarding': true,
+    });
+
+    expect(user.onboardingCompletedAt, isNull);
+    expect(user.needsOnboarding, isTrue);
   });
 
   test('Reminder parses API response', () {
