@@ -38,11 +38,6 @@ String? redirectForAuthState({
   if (!initialized) {
     return path == '/' ? null : '/';
   }
-  // Intro video at '/' is one-shot – once the app is initialized,
-  // always skip straight to the welcome splash.
-  if (path == '/') {
-    return '/welcome';
-  }
   if (!isAuthenticated &&
       (path.startsWith('/app') || path == '/profile-setup')) {
     return '/sign-in';

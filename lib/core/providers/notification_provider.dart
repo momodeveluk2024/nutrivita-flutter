@@ -52,8 +52,6 @@ class NotificationProvider extends ChangeNotifier {
     lunchTime = await NotificationPrefs.getLunchTime();
     dinnerTime = await NotificationPrefs.getDinnerTime();
 
-    await _loadServerPreferences();
-
     isLoading = false;
     notifyListeners();
 

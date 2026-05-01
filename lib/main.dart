@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:device_preview/device_preview.dart';
@@ -22,9 +23,7 @@ const _enableDevicePreview = bool.fromEnvironment('ENABLE_DEVICE_PREVIEW');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize notification system
-  await NotificationService.instance.initialize();
+  await Firebase.initializeApp();
 
   const storage = SecureTokenStorage();
   final api = ApiClient(tokenStorage: storage);
@@ -57,6 +56,16 @@ Future<void> main() async {
         ? DevicePreview(builder: (_) => app)
         : app,
   );
+
+  unawaited(_initializeNotificationsAfterFirstFrame(notificationProvider));
+}
+
+Future<void> _initializeNotificationsAfterFirstFrame(
+  NotificationProvider notificationProvider,
+) async {
+  await WidgetsBinding.instance.endOfFrame;
+  await NotificationService.instance.initialize();
+  await notificationProvider.initialize();
 }
 
 class NutrimateApp extends StatefulWidget {

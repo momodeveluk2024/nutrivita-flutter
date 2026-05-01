@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
@@ -30,22 +31,26 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   Future<void> initialize() async {
+    // Wait for the first auth state event before returning,
+    // so the router knows whether the user is logged in.
+    final completer = Completer<void>();
+
     _firebaseAuth.authStateChanges().listen((firebaseUser) async {
       if (firebaseUser == null) {
         _user = null;
-        _initialized = true;
-        notifyListeners();
       } else {
         try {
           await loadMe();
         } catch (_) {
           _user = null;
-        } finally {
-          _initialized = true;
-          notifyListeners();
         }
       }
+      _initialized = true;
+      notifyListeners();
+      if (!completer.isCompleted) completer.complete();
     });
+
+    return completer.future;
   }
 
   Future<void> signup({
