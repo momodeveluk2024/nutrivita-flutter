@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import {
-  LayoutDashboard, Apple, Sparkles, BookOpen, Users, Bell, Settings,
+  LayoutDashboard, Apple, Sparkles, BookOpen, Users, Bell, Settings, Bot, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,13 @@ const groups = [
       { href: "/meal-logs", label: "Meal logs", icon: BookOpen },
       { href: "/users",     label: "Users",     icon: Users    },
       { href: "/reminders", label: "Reminders", icon: Bell     },
+    ],
+  },
+  {
+    title: "AI",
+    items: [
+      { href: "/ai/estimates", label: "Estimates", icon: Bot      },
+      { href: "/ai/usage",     label: "Usage",     icon: Activity },
     ],
   },
 ];

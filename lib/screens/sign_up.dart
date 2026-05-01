@@ -346,7 +346,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     children: [
                       _GlassCircleButton(
                         icon: Icons.chevron_left_rounded,
-                        onTap: () => context.go('/'),
+                        onTap: () => context.go('/welcome'),
                       ),
                       const Spacer(),
                       Row(

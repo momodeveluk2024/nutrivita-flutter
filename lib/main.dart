@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:provider/provider.dart';
 import 'core/api/api_client.dart';
+import 'core/notifications/notification_service.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/ai_provider.dart';
 import 'core/providers/food_provider.dart';
+import 'core/providers/notification_provider.dart';
 import 'core/providers/nutrition_provider.dart';
 import 'core/providers/reminder_provider.dart';
 import 'core/router.dart';
@@ -16,16 +19,25 @@ const _enableDevicePreview = bool.fromEnvironment('ENABLE_DEVICE_PREVIEW');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize notification system
+  await NotificationService.instance.initialize();
+
   const storage = SecureTokenStorage();
   final api = ApiClient(tokenStorage: storage);
   final authProvider = AuthProvider(api: api, storage: storage);
   await authProvider.initialize();
 
+  final notificationProvider = NotificationProvider();
+  // Initialize notification prefs (loads saved toggles & schedules)
+  notificationProvider.initialize();
+
   final app = NutrimateApp(
     authProvider: authProvider,
+    aiProvider: AiProvider(api: api),
     foodProvider: FoodProvider(api: api),
     nutritionProvider: NutritionProvider(api: api),
     reminderProvider: ReminderProvider(api: api),
+    notificationProvider: notificationProvider,
   );
 
   runApp(
@@ -39,26 +51,35 @@ class NutrimateApp extends StatelessWidget {
   const NutrimateApp({
     super.key,
     required this.authProvider,
+    this.aiProvider,
     required this.foodProvider,
     required this.nutritionProvider,
     required this.reminderProvider,
+    required this.notificationProvider,
   });
 
   final AuthProvider authProvider;
+  final AiProvider? aiProvider;
   final FoodProvider foodProvider;
   final NutritionProvider nutritionProvider;
   final ReminderProvider reminderProvider;
+  final NotificationProvider notificationProvider;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        if (aiProvider != null)
+          ChangeNotifierProvider<AiProvider>.value(value: aiProvider!),
         ChangeNotifierProvider<FoodProvider>.value(value: foodProvider),
         ChangeNotifierProvider<NutritionProvider>.value(
           value: nutritionProvider,
         ),
         ChangeNotifierProvider<ReminderProvider>.value(value: reminderProvider),
+        ChangeNotifierProvider<NotificationProvider>.value(
+          value: notificationProvider,
+        ),
       ],
       child: Builder(
         builder: (context) {

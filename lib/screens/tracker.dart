@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../core/models/food_log.dart';
@@ -18,6 +20,7 @@ class TrackerScreen extends StatefulWidget {
 
 class _TrackerScreenState extends State<TrackerScreen> {
   DateTime _selectedDate = _dateOnly(DateTime.now());
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -48,11 +51,51 @@ class _TrackerScreenState extends State<TrackerScreen> {
     if (picked != null) await _selectDate(picked);
   }
 
+  Future<void> _startAiMealPhoto() async {
+    HapticFeedback.selectionClick();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => const _AiPhotoSourceSheet(),
+    );
+    if (source == null) return;
+    await _openAiMealPhoto(source);
+  }
+
+  Future<void> _openAiMealPhoto(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 88,
+        maxWidth: 2200,
+      );
+      if (picked == null || !mounted) return;
+      context.push(
+        '/app/ai/meal-photo',
+        extra: <String, String>{
+          'imagePath': picked.path,
+          'mealType': _defaultMealType(DateTime.now()),
+          'loggedOn': _dateString(_selectedDate),
+        },
+      );
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message ?? 'Could not open photo picker.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = NVColors.of(context);
     final nutrition = context.watch<NutritionProvider>();
-    final todayPct = ((nutrition.todayTotals?.averagePercent ?? 0) / 100).clamp(0.0, 1.0);
+    final todayPct = ((nutrition.todayTotals?.averagePercent ?? 0) / 100).clamp(
+      0.0,
+      1.0,
+    );
 
     return SafeArea(
       bottom: false,
@@ -60,7 +103,12 @@ class _TrackerScreenState extends State<TrackerScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(NVSpace.x5, NVSpace.x3, NVSpace.x5, NVSpace.x2),
+            padding: const EdgeInsets.fromLTRB(
+              NVSpace.x5,
+              NVSpace.x3,
+              NVSpace.x5,
+              NVSpace.x2,
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -84,6 +132,13 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   ),
                 ),
                 NVCircleIconButton(
+                  icon: Icons.auto_awesome_rounded,
+                  background: NV.accent,
+                  foreground: Colors.white,
+                  onTap: _startAiMealPhoto,
+                ),
+                const SizedBox(width: NVSpace.x2),
+                NVCircleIconButton(
                   icon: Icons.calendar_today_rounded,
                   onTap: _pickDate,
                 ),
@@ -98,8 +153,15 @@ class _TrackerScreenState extends State<TrackerScreen> {
               color: NV.accent,
               onRefresh: _refresh,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(NVSpace.x5, 0, NVSpace.x5, 120),
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(
+                  NVSpace.x5,
+                  0,
+                  NVSpace.x5,
+                  120,
+                ),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 children: [
                   _DaySummary(
                     pct: todayPct,
@@ -127,15 +189,33 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   if (nutrition.logs.isEmpty)
                     NVCard(
                       padding: const EdgeInsets.all(NVSpace.x5),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.no_meals_outlined, color: c.textMuted, size: 20),
-                          const SizedBox(width: NVSpace.x3),
-                          Expanded(
-                            child: Text(
-                              'Nothing logged for this day.',
-                              style: TextStyle(color: c.textMuted, fontSize: 13),
-                            ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.no_meals_outlined,
+                                color: c.textMuted,
+                                size: 20,
+                              ),
+                              const SizedBox(width: NVSpace.x3),
+                              Expanded(
+                                child: Text(
+                                  'Nothing logged for this day.',
+                                  style: TextStyle(
+                                    color: c.textMuted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: NVSpace.x4),
+                          FilledButton.icon(
+                            onPressed: _startAiMealPhoto,
+                            icon: const Icon(Icons.add_a_photo_rounded),
+                            label: const Text('Analyze meal photo'),
                           ),
                         ],
                       ),
@@ -152,6 +232,50 @@ class _TrackerScreenState extends State<TrackerScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AiPhotoSourceSheet extends StatelessWidget {
+  const _AiPhotoSourceSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = NVColors.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          NVSpace.x5,
+          NVSpace.x2,
+          NVSpace.x5,
+          NVSpace.x5,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Meal photo',
+              style: TextStyle(
+                color: c.text,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: NVSpace.x4),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text('Camera'),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -227,17 +351,11 @@ class _DaySummary extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _MiniKPI(
-                  label: 'Meals',
-                  value: '$mealCount',
-                ),
+                child: _MiniKPI(label: 'Meals', value: '$mealCount'),
               ),
               Container(width: 1, height: 28, color: c.border),
               Expanded(
-                child: _MiniKPI(
-                  label: 'Streak',
-                  value: '$streak',
-                ),
+                child: _MiniKPI(label: 'Streak', value: '$streak'),
               ),
               Container(width: 1, height: 28, color: c.border),
               Expanded(
@@ -284,7 +402,10 @@ class _MacroBars extends StatelessWidget {
   Widget build(BuildContext context) {
     final macros = const ['Protein', 'Carbs', 'Fat', 'Fiber'];
     return NVCard(
-      padding: const EdgeInsets.symmetric(horizontal: NVSpace.x5, vertical: NVSpace.x4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: NVSpace.x5,
+        vertical: NVSpace.x4,
+      ),
       child: Column(
         children: [
           for (var i = 0; i < macros.length; i++) ...[
@@ -308,7 +429,8 @@ class _MacroLine extends StatelessWidget {
     final hue = vitaminColors[code]!;
     final t = totals.nutrients.firstWhere(
       (n) => n.code == code,
-      orElse: () => const NutrientTotal(code: '', name: '', unit: 'g', amount: 0),
+      orElse: () =>
+          const NutrientTotal(code: '', name: '', unit: 'g', amount: 0),
     );
     final pct = ((t.driPercent ?? 0) / 100).clamp(0.0, 1.0);
     return Column(
@@ -319,7 +441,10 @@ class _MacroLine extends StatelessWidget {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: hue.fill, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: hue.fill,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -335,7 +460,11 @@ class _MacroLine extends StatelessWidget {
             ),
             Text(
               '${t.amount.toStringAsFixed(t.amount >= 100 ? 0 : 1)} ${t.unit}',
-              style: TextStyle(fontSize: 12, color: c.textMuted, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12,
+                color: c.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(width: 8),
             SizedBox(
@@ -402,7 +531,10 @@ class _WeekStripState extends State<_WeekStrip> {
     final index = _dayIndex(widget.selectedDate);
     final viewport = _controller.position.viewportDimension;
     final max = _controller.position.maxScrollExtent;
-    final target = (index * _itemExtent - viewport / 2 + _itemExtent / 2).clamp(0.0, max);
+    final target = (index * _itemExtent - viewport / 2 + _itemExtent / 2).clamp(
+      0.0,
+      max,
+    );
     if (jump) {
       _controller.jumpTo(target);
       return;
@@ -435,7 +567,10 @@ class _WeekStripState extends State<_WeekStrip> {
         itemBuilder: (context, i) {
           final date = _firstDate.add(Duration(days: i));
           final key = _dateString(date);
-          final pct = ((totalsByDate[key]?.averagePercent ?? 0) / 100).clamp(0.0, 1.0);
+          final pct = ((totalsByDate[key]?.averagePercent ?? 0) / 100).clamp(
+            0.0,
+            1.0,
+          );
           final active = _sameDay(date, widget.selectedDate);
           final isToday = _sameDay(date, today);
           return _DayCell(
@@ -491,9 +626,7 @@ class _DayCell extends StatelessWidget {
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
-                  color: active
-                      ? const Color(0xFFD8DAC8)
-                      : c.textMuted,
+                  color: active ? const Color(0xFFD8DAC8) : c.textMuted,
                 ),
               ),
               Text(
@@ -579,7 +712,11 @@ class _MealLogCard extends StatelessWidget {
                       : log.items.map((i) => i.foodName).join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: c.textMuted,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -613,7 +750,9 @@ String _mealSummary(int count) {
 String _dateTitle(DateTime date) {
   final today = _dateOnly(DateTime.now());
   if (_sameDay(date, today)) return 'Today';
-  if (_sameDay(date, today.subtract(const Duration(days: 1)))) return 'Yesterday';
+  if (_sameDay(date, today.subtract(const Duration(days: 1)))) {
+    return 'Yesterday';
+  }
   return '${_weekdayName(date.weekday)}, ${_monthName(date.month)} ${date.day}';
 }
 
@@ -623,8 +762,18 @@ String _weekdayName(int weekday) {
 
 String _monthName(int month) {
   return const [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ][month - 1];
 }
 
@@ -636,3 +785,10 @@ DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _defaultMealType(DateTime now) {
+  if (now.hour < 11) return 'breakfast';
+  if (now.hour < 16) return 'lunch';
+  if (now.hour < 21) return 'dinner';
+  return 'snack';
+}

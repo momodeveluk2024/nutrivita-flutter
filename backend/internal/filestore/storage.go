@@ -45,6 +45,10 @@ func FoodImageKey(foodID uuid.UUID, filename string) string {
 	return filepath.ToSlash(filepath.Join("foods", foodID.String(), safeFilename(filename)))
 }
 
+func MealPhotoKey(userID, estimateID uuid.UUID, filename string) string {
+	return filepath.ToSlash(filepath.Join("meal-photos", userID.String(), estimateID.String(), safeFilename(filename)))
+}
+
 func (s *LocalStore) Put(ctx context.Context, key string, contentType string, reader io.Reader) (Object, error) {
 	if err := ctx.Err(); err != nil {
 		return Object{}, err

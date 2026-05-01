@@ -45,6 +45,7 @@ type CreateFoodParams struct {
 	Brand        *string
 	Category     string
 	ServingSizeG float64
+	Source       string
 	Barcode      *string
 	ImageURL     *string
 	Nutrients    []CreateFoodNutrient
@@ -239,6 +240,10 @@ func (s *Store) GetFoodDetailByBarcode(ctx context.Context, barcode string) (Foo
 }
 
 func (s *Store) CreateFood(ctx context.Context, params CreateFoodParams) (FoodDetail, error) {
+	source := strings.TrimSpace(params.Source)
+	if source == "" {
+		source = "user"
+	}
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return FoodDetail{}, err
@@ -247,8 +252,8 @@ func (s *Store) CreateFood(ctx context.Context, params CreateFoodParams) (FoodDe
 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO foods (id, owner_user_id, name, brand, category, serving_size_g, source, verified, barcode, image_url)
-		VALUES ($1, $2, $3, $4, $5, $6, 'user', false, $7, $8)
-	`, params.ID, params.OwnerUserID, params.Name, params.Brand, params.Category, params.ServingSizeG, params.Barcode, params.ImageURL)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9)
+	`, params.ID, params.OwnerUserID, params.Name, params.Brand, params.Category, params.ServingSizeG, source, params.Barcode, params.ImageURL)
 	if err != nil {
 		return FoodDetail{}, err
 	}

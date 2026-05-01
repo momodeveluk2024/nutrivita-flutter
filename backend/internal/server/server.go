@@ -16,6 +16,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	aipkg "github.com/momodeveluk2024/nutrivita-flutter/backend/internal/ai"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/auth"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/config"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/db"
@@ -26,35 +27,42 @@ import (
 )
 
 type App struct {
-	cfg       config.Config
-	store     *db.Store
-	logger    *slog.Logger
-	validate  *validator.Validate
-	tokenizer auth.TokenManager
-	authLimit *rateLimiter
-	lockouts  *loginLockouts
-	scheduler jobs.ReminderScheduler
-	push      notifications.PushSender
-	storage   filestore.ObjectStore
-	metrics   *metrics
-	now       func() time.Time
+	cfg            config.Config
+	store          *db.Store
+	logger         *slog.Logger
+	validate       *validator.Validate
+	tokenizer      auth.TokenManager
+	authLimit      *rateLimiter
+	aiLimit        *rateLimiter
+	lockouts       *loginLockouts
+	scheduler      jobs.ReminderScheduler
+	push           notifications.PushSender
+	storage        filestore.ObjectStore
+	metrics        *metrics
+	ai             aipkg.Provider
+	aiProviderName string
+	now            func() time.Time
 }
 
 func New(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
-	return &App{
-		cfg:       cfg,
-		store:     store,
-		logger:    logger,
-		validate:  validator.New(validator.WithRequiredStructEnabled()),
-		tokenizer: auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL),
-		authLimit: newRateLimiter(10, time.Minute),
-		lockouts:  newLoginLockouts(5, 15*time.Minute),
-		scheduler: jobs.NewNoopReminderScheduler(logger),
-		push:      notifications.NewDevLoggerSender(logger),
-		storage:   filestore.NewLocalStore("data/uploads", "/uploads"),
-		metrics:   newMetrics(),
-		now:       time.Now,
+	app := &App{
+		cfg:            cfg,
+		store:          store,
+		logger:         logger,
+		validate:       validator.New(validator.WithRequiredStructEnabled()),
+		tokenizer:      auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL),
+		authLimit:      newRateLimiter(10, time.Minute),
+		aiLimit:        newRateLimiter(20, time.Hour),
+		lockouts:       newLoginLockouts(5, 15*time.Minute),
+		scheduler:      jobs.NewNoopReminderScheduler(logger),
+		push:           notifications.NewDevLoggerSender(logger),
+		storage:        filestore.NewLocalStore("data/uploads", "/uploads"),
+		metrics:        newMetrics(),
+		aiProviderName: strings.TrimSpace(cfg.AIProvider),
+		now:            time.Now,
 	}
+	app.ai = buildAIProvider(cfg, logger)
+	return app
 }
 
 func (a *App) Routes() http.Handler {
@@ -127,6 +135,9 @@ func (a *App) Routes() http.Handler {
 			r.Get("/admin/reminder-templates", a.handleAdminReminderTemplates)
 			r.Post("/admin/reminder-templates", a.handleAdminCreateReminderTemplate)
 			r.Patch("/admin/reminder-templates/{templateID}", a.handleAdminUpdateReminderTemplate)
+			r.Get("/admin/ai/estimates", a.handleAdminAIEstimates)
+			r.Get("/admin/ai/usage", a.handleAdminAIUsage)
+			r.Patch("/admin/ai/estimates/{estimateID}/review", a.handleAdminReviewAIEstimate)
 			r.Get("/admin/audit-log", a.handleAdminAuditLog)
 		})
 		r.Group(func(r chi.Router) {
@@ -151,10 +162,42 @@ func (a *App) Routes() http.Handler {
 			r.Post("/reminders", a.handleCreateReminder)
 			r.Delete("/reminders/{reminderID}", a.handleDeleteReminder)
 			r.Get("/recommendations", a.handleRecommendations)
+			r.Group(func(r chi.Router) {
+				r.Use(a.aiLimit.middleware)
+				r.Post("/ai/meal-photo/analyze", a.handleAnalyzeMealPhoto)
+				r.Patch("/ai/estimates/{estimateID}", a.handleUpdateAIEstimate)
+				r.Post("/ai/estimates/{estimateID}/accept", a.handleAcceptAIEstimate)
+				r.Post("/ai/chat", a.handleAIChat)
+			})
 		})
 	})
 
 	return r
+}
+
+func buildAIProvider(cfg config.Config, logger *slog.Logger) aipkg.Provider {
+	if !cfg.AIEnabled {
+		return nil
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.AIProvider)) {
+	case "", "development", "mock", "local":
+		return aipkg.NewDevelopmentProvider()
+	case "gemini", "vertex", "vertex-gemini":
+		provider, err := aipkg.NewGeminiProvider(context.Background(), aipkg.GeminiConfig{
+			Project:  cfg.GoogleProject,
+			Location: cfg.GoogleLocation,
+			Model:    cfg.GeminiModelFast,
+			Timeout:  45 * time.Second,
+		})
+		if err != nil {
+			logger.Error("configure gemini provider", "error", err)
+			return nil
+		}
+		return provider
+	default:
+		logger.Warn("unknown ai provider, using development provider", "provider", cfg.AIProvider)
+		return aipkg.NewDevelopmentProvider()
+	}
 }
 
 type signupRequest struct {

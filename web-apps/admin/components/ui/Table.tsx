@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { type ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
@@ -63,6 +63,10 @@ export function TRow({
   );
 }
 
-export function TD({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn("px-4 py-3.5 align-middle", className)}>{children}</td>;
+export function TD({
+  children,
+  className,
+  ...props
+}: { children: ReactNode; className?: string } & ComponentPropsWithoutRef<"td">) {
+  return <td {...props} className={cn("px-4 py-3.5 align-middle", className)}>{children}</td>;
 }

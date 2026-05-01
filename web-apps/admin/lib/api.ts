@@ -12,6 +12,57 @@ export class ApiError extends Error {
   }
 }
 
+export type AiEstimateItem = {
+  id: string;
+  name: string;
+  matchedFoodId?: string;
+  quantityG: number;
+  caloriesKcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  confidence: number;
+  source: string;
+};
+
+export type AiEstimate = {
+  id: string;
+  userId?: string;
+  userEmail?: string;
+  imageUrl?: string;
+  provider: string;
+  model: string;
+  status: string;
+  confidence: number;
+  mealType: string;
+  loggedOn: string;
+  locale: string;
+  unitSystem: string;
+  question?: string;
+  questions: string[];
+  warnings: string[];
+  acceptedLogId?: string;
+  reviewedStatus?: string;
+  reviewNotes?: string;
+  items: AiEstimateItem[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AiUsageSummary = {
+  requests: number;
+  failures: number;
+  averageLatencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  models: {
+    model: string;
+    provider: string;
+    requests: number;
+    failures: number;
+  }[];
+};
+
 export async function backendFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const cookieStore = await cookies();
   const access = cookieStore.get(ADMIN_ACCESS_COOKIE)?.value;
@@ -103,8 +154,82 @@ function normalizeFood(raw: Record<string, unknown>): Food {
 function normalizeSource(value: unknown): Food["source"] {
   if (value === "seed" || value === "manual" || value === "user_submitted") return value;
   if (value === "user") return "user_submitted";
+  if (value === "ai_estimate") return "user_submitted";
   return "manual";
 }
+
+function normalizeStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+}
+
+function normalizeAiEstimateItem(raw: Record<string, unknown>): AiEstimateItem {
+  return {
+    id: String(raw.id ?? ""),
+    name: String(raw.name ?? "Unknown item"),
+    matchedFoodId: (raw.matchedFoodId as string | undefined) ?? (raw.matched_food_id as string | undefined) ?? undefined,
+    quantityG: Number(raw.quantityG ?? raw.quantity_g ?? 0),
+    caloriesKcal: Number(raw.caloriesKcal ?? raw.calories_kcal ?? 0),
+    proteinG: Number(raw.proteinG ?? raw.protein_g ?? 0),
+    carbsG: Number(raw.carbsG ?? raw.carbs_g ?? 0),
+    fatG: Number(raw.fatG ?? raw.fat_g ?? 0),
+    confidence: Number(raw.confidence ?? 0),
+    source: String(raw.source ?? "ai_estimate"),
+  };
+}
+
+function normalizeAiEstimate(raw: Record<string, unknown>): AiEstimate {
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  return {
+    id: String(raw.id ?? raw.estimate_id ?? ""),
+    userId: (raw.userId as string | undefined) ?? (raw.user_id as string | undefined) ?? undefined,
+    userEmail: (raw.userEmail as string | undefined) ?? (raw.user_email as string | undefined) ?? undefined,
+    imageUrl: (raw.imageUrl as string | undefined) ?? (raw.image_url as string | undefined) ?? undefined,
+    provider: String(raw.provider ?? ""),
+    model: String(raw.model ?? ""),
+    status: String(raw.status ?? "pending"),
+    confidence: Number(raw.confidence ?? 0),
+    mealType: String(raw.mealType ?? raw.meal_type ?? "meal"),
+    loggedOn: String(raw.loggedOn ?? raw.logged_on ?? ""),
+    locale: String(raw.locale ?? "en"),
+    unitSystem: String(raw.unitSystem ?? raw.unit_system ?? "metric"),
+    question: (raw.question as string | undefined) ?? undefined,
+    questions: normalizeStringList(raw.questions),
+    warnings: normalizeStringList(raw.warnings),
+    acceptedLogId: (raw.acceptedLogId as string | undefined) ?? (raw.accepted_log_id as string | undefined) ?? undefined,
+    reviewedStatus: (raw.reviewedStatus as string | undefined) ?? (raw.reviewed_status as string | undefined) ?? undefined,
+    reviewNotes: (raw.reviewNotes as string | undefined) ?? (raw.review_notes as string | undefined) ?? undefined,
+    items: items.map((item) => normalizeAiEstimateItem(item as Record<string, unknown>)),
+    createdAt: String(raw.createdAt ?? raw.created_at ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? raw.updated_at ?? new Date().toISOString()),
+  };
+}
+
+const pickAiEstimates = (raw: unknown): AiEstimate[] | undefined => {
+  const arr = pickEnvelopeArray<unknown>("estimates")(raw);
+  return arr?.map((r) => normalizeAiEstimate(r as Record<string, unknown>));
+};
+
+const pickAiUsage = (raw: unknown): AiUsageSummary | undefined => {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const models = Array.isArray(obj.models) ? obj.models : [];
+  return {
+    requests: Number(obj.requests ?? 0),
+    failures: Number(obj.failures ?? 0),
+    averageLatencyMs: Number(obj.averageLatencyMs ?? obj.average_latency_ms ?? 0),
+    inputTokens: Number(obj.inputTokens ?? obj.input_tokens ?? 0),
+    outputTokens: Number(obj.outputTokens ?? obj.output_tokens ?? 0),
+    models: models.map((model) => {
+      const m = model as Record<string, unknown>;
+      return {
+        model: String(m.model ?? ""),
+        provider: String(m.provider ?? ""),
+        requests: Number(m.requests ?? 0),
+        failures: Number(m.failures ?? 0),
+      };
+    }),
+  };
+};
 
 function pickEnvelopeArray<T>(key: string) {
   return (raw: unknown): T[] | undefined => {
@@ -169,6 +294,19 @@ export const api = {
     }));
   }, mock.reminderTemplates),
   overview: (range = "week") => tryGet<Overview>(`/admin/overview?range=${encodeURIComponent(range)}`, pickOverview, mock.overview),
+  listAiEstimates: (params: { status?: string } = {}) => {
+    const query = new URLSearchParams({ limit: "100" });
+    if (params.status) query.set("status", params.status);
+    return tryGet<AiEstimate[]>(`/admin/ai/estimates?${query}`, pickAiEstimates, []);
+  },
+  aiUsage: () => tryGet<AiUsageSummary>("/admin/ai/usage", pickAiUsage, {
+    requests: 0,
+    failures: 0,
+    averageLatencyMs: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    models: [],
+  }),
 };
 
 export async function mutateJson<T = unknown>(path: string, body: unknown, method = "POST"): Promise<T> {

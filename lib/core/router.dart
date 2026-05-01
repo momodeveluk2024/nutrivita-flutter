@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../screens/app_shell.dart';
+import '../screens/ai_chat.dart';
+import '../screens/ai_meal_photo.dart';
 import '../screens/food_detail.dart';
+import '../screens/notification_settings.dart';
 import '../screens/onboarding.dart';
 import '../screens/password_reset.dart';
 import '../screens/profile_settings.dart';
@@ -34,6 +37,11 @@ String? redirectForAuthState({
 }) {
   if (!initialized) {
     return path == '/' ? null : '/';
+  }
+  // Intro video at '/' is one-shot – once the app is initialized,
+  // always skip straight to the welcome splash.
+  if (path == '/') {
+    return '/welcome';
   }
   if (!isAuthenticated &&
       (path.startsWith('/app') || path == '/profile-setup')) {
@@ -133,6 +141,30 @@ GoRouter buildRouter(AuthProvider auth) {
         builder: (context, state) => const AppShell(initialTab: 2),
       ),
       GoRoute(
+        path: '/app/ai/meal-photo',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is! Map<String, String>) {
+            return const _MissingAiPhotoScreen();
+          }
+          final imagePath = extra['imagePath'];
+          final mealType = extra['mealType'];
+          final loggedOn = extra['loggedOn'];
+          if (imagePath == null || mealType == null || loggedOn == null) {
+            return const _MissingAiPhotoScreen();
+          }
+          return AiMealPhotoScreen(
+            imagePath: imagePath,
+            mealType: mealType,
+            loggedOn: loggedOn,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/app/ai/chat',
+        builder: (context, state) => const AiChatScreen(),
+      ),
+      GoRoute(
         path: '/app/saved',
         builder: (context, state) => const AppShell(initialTab: 3),
       ),
@@ -167,6 +199,10 @@ GoRouter buildRouter(AuthProvider auth) {
         builder: (context, state) => const ProfileRemindersScreen(),
       ),
       GoRoute(
+        path: '/app/profile/notifications',
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
         path: '/app/profile/units',
         builder: (context, state) => const ProfileUnitsScreen(),
       ),
@@ -183,4 +219,16 @@ GoRouter buildRouter(AuthProvider auth) {
       body: Center(child: Text(state.error?.message ?? 'Route not found')),
     ),
   );
+}
+
+class _MissingAiPhotoScreen extends StatelessWidget {
+  const _MissingAiPhotoScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('AI meal estimate')),
+      body: const Center(child: Text('Choose a meal photo first.')),
+    );
+  }
 }

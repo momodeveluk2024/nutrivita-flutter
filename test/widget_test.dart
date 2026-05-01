@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myapplication/core/api/api_client.dart';
 import 'package:myapplication/core/providers/auth_provider.dart';
 import 'package:myapplication/core/providers/food_provider.dart';
+import 'package:myapplication/core/providers/notification_provider.dart';
 import 'package:myapplication/core/providers/nutrition_provider.dart';
 import 'package:myapplication/core/providers/reminder_provider.dart';
 import 'package:myapplication/core/storage/secure_storage.dart';
@@ -31,6 +32,7 @@ void main() {
         foodProvider: FoodProvider(api: api),
         nutritionProvider: NutritionProvider(api: api),
         reminderProvider: ReminderProvider(api: api),
+        notificationProvider: NotificationProvider(),
       ),
     );
     await tester.pump();
@@ -55,6 +57,7 @@ void main() {
         foodProvider: FoodProvider(api: api),
         nutritionProvider: NutritionProvider(api: api),
         reminderProvider: ReminderProvider(api: api),
+        notificationProvider: NotificationProvider(),
       ),
     );
     await tester.pump();
@@ -93,6 +96,7 @@ void main() {
         foodProvider: FoodProvider(api: api),
         nutritionProvider: NutritionProvider(api: api),
         reminderProvider: ReminderProvider(api: api),
+        notificationProvider: NotificationProvider(),
       ),
     );
     await tester.pump();
