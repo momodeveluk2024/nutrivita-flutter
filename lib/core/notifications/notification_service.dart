@@ -4,6 +4,7 @@
 ///
 /// Navigation on tap is handled through a payload string that
 /// the app's root widget inspects on launch and when tapped.
+library;
 
 import 'dart:async';
 
@@ -79,9 +80,10 @@ class NotificationService {
     );
 
     // ── Register channels ──────────────────────────────────────
-    final androidPlugin =
-        _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (androidPlugin != null) {
       for (final channel in NVChannels.all) {
         await androidPlugin.createNotificationChannel(channel);
@@ -91,9 +93,10 @@ class NotificationService {
 
   // ── Permission ────────────────────────────────────────────────
   Future<bool> requestPermission() async {
-    final android =
-        _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
       return granted ?? false;
@@ -234,7 +237,14 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }

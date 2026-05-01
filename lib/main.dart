@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/api/api_client.dart';
+import 'core/notifications/fcm_notification_service.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/ai_provider.dart';
@@ -27,9 +31,17 @@ Future<void> main() async {
   final authProvider = AuthProvider(api: api, storage: storage);
   await authProvider.initialize();
 
-  final notificationProvider = NotificationProvider();
+  final notificationProvider = NotificationProvider(api: api);
+  authProvider.addListener(() {
+    notificationProvider.handleAuthChanged(
+      isAuthenticated: authProvider.isAuthenticated,
+    );
+  });
   // Initialize notification prefs (loads saved toggles & schedules)
-  notificationProvider.initialize();
+  await notificationProvider.initialize();
+  await notificationProvider.handleAuthChanged(
+    isAuthenticated: authProvider.isAuthenticated,
+  );
 
   final app = NutrimateApp(
     authProvider: authProvider,
@@ -47,7 +59,7 @@ Future<void> main() async {
   );
 }
 
-class NutrimateApp extends StatelessWidget {
+class NutrimateApp extends StatefulWidget {
   const NutrimateApp({
     super.key,
     required this.authProvider,
@@ -66,24 +78,55 @@ class NutrimateApp extends StatelessWidget {
   final NotificationProvider notificationProvider;
 
   @override
+  State<NutrimateApp> createState() => _NutrimateAppState();
+}
+
+class _NutrimateAppState extends State<NutrimateApp> {
+  late final GoRouter _router;
+  StreamSubscription<String?>? _notificationTapSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = buildRouter(widget.authProvider);
+    _notificationTapSub = notificationTapStream.stream.listen((route) {
+      if (route == null || route.trim().isEmpty) return;
+      _router.go(route);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final route = FcmNotificationService.instance.takePendingRoute();
+      if (route != null && route.trim().isNotEmpty) {
+        _router.go(route);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationTapSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-        if (aiProvider != null)
-          ChangeNotifierProvider<AiProvider>.value(value: aiProvider!),
-        ChangeNotifierProvider<FoodProvider>.value(value: foodProvider),
+        ChangeNotifierProvider<AuthProvider>.value(value: widget.authProvider),
+        if (widget.aiProvider != null)
+          ChangeNotifierProvider<AiProvider>.value(value: widget.aiProvider!),
+        ChangeNotifierProvider<FoodProvider>.value(value: widget.foodProvider),
         ChangeNotifierProvider<NutritionProvider>.value(
-          value: nutritionProvider,
+          value: widget.nutritionProvider,
         ),
-        ChangeNotifierProvider<ReminderProvider>.value(value: reminderProvider),
+        ChangeNotifierProvider<ReminderProvider>.value(
+          value: widget.reminderProvider,
+        ),
         ChangeNotifierProvider<NotificationProvider>.value(
-          value: notificationProvider,
+          value: widget.notificationProvider,
         ),
       ],
       child: Builder(
         builder: (context) {
-          final router = buildRouter(authProvider);
           final appearance = context.select<AuthProvider, String>(
             (provider) => provider.user?.appearance ?? 'light',
           );
@@ -103,7 +146,7 @@ class NutrimateApp extends StatelessWidget {
               'system' => ThemeMode.system,
               _ => ThemeMode.light,
             },
-            routerConfig: router,
+            routerConfig: _router,
           );
         },
       ),

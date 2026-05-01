@@ -1,5 +1,6 @@
 /// Persists notification toggle states and meal reminder times
 /// using SharedPreferences.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,30 +45,38 @@ class NotificationPrefs {
   static Future<void> setAiInsights(bool v) => _setBool(_aiInsights, v);
 
   // ── Meal times ────────────────────────────────────────────────
-  static Future<TimeOfDay> getBreakfastTime() async =>
-      TimeOfDay(hour: await _getInt(_breakfastHour, 8), minute: await _getInt(_breakfastMinute, 0));
+  static Future<TimeOfDay> getBreakfastTime() async => TimeOfDay(
+    hour: await _getInt(_breakfastHour, 8),
+    minute: await _getInt(_breakfastMinute, 0),
+  );
   static Future<void> setBreakfastTime(TimeOfDay t) async {
     await _setInt(_breakfastHour, t.hour);
     await _setInt(_breakfastMinute, t.minute);
   }
 
-  static Future<TimeOfDay> getLunchTime() async =>
-      TimeOfDay(hour: await _getInt(_lunchHour, 12), minute: await _getInt(_lunchMinute, 30));
+  static Future<TimeOfDay> getLunchTime() async => TimeOfDay(
+    hour: await _getInt(_lunchHour, 12),
+    minute: await _getInt(_lunchMinute, 30),
+  );
   static Future<void> setLunchTime(TimeOfDay t) async {
     await _setInt(_lunchHour, t.hour);
     await _setInt(_lunchMinute, t.minute);
   }
 
-  static Future<TimeOfDay> getDinnerTime() async =>
-      TimeOfDay(hour: await _getInt(_dinnerHour, 19), minute: await _getInt(_dinnerMinute, 0));
+  static Future<TimeOfDay> getDinnerTime() async => TimeOfDay(
+    hour: await _getInt(_dinnerHour, 19),
+    minute: await _getInt(_dinnerMinute, 0),
+  );
   static Future<void> setDinnerTime(TimeOfDay t) async {
     await _setInt(_dinnerHour, t.hour);
     await _setInt(_dinnerMinute, t.minute);
   }
 
   // ── Permission ────────────────────────────────────────────────
-  static Future<bool> wasPermissionRequested() => _getBool(_permissionRequested, false);
-  static Future<void> markPermissionRequested() => _setBool(_permissionRequested, true);
+  static Future<bool> wasPermissionRequested() =>
+      _getBool(_permissionRequested, false);
+  static Future<void> markPermissionRequested() =>
+      _setBool(_permissionRequested, true);
 
   // ── Internal ──────────────────────────────────────────────────
   static Future<bool> _getBool(String key, bool fallback) async {

@@ -34,6 +34,7 @@ func main() {
 	defer pool.Close()
 
 	app := server.New(cfg, db.NewStore(pool), logger)
+	app.StartBackgroundJobs(ctx.Done())
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           app.Routes(),

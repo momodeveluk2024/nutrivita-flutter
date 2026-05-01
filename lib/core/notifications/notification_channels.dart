@@ -3,6 +3,7 @@
 /// Each channel maps to a distinct user-visible category in the
 /// device's notification settings, letting the user toggle them
 /// individually.
+library;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 

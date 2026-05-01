@@ -45,6 +45,16 @@ type App struct {
 }
 
 func New(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
+	push := notifications.PushSender(notifications.NewDevLoggerSender(logger))
+	if strings.TrimSpace(cfg.FirebaseCredentialsFile) != "" {
+		sender, err := notifications.NewFCMSender(context.Background(), cfg.FirebaseCredentialsFile)
+		if err != nil {
+			logger.Error("configure firebase cloud messaging", "error", err)
+		} else {
+			push = sender
+		}
+	}
+
 	app := &App{
 		cfg:            cfg,
 		store:          store,
@@ -55,7 +65,7 @@ func New(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 		aiLimit:        newRateLimiter(20, time.Hour),
 		lockouts:       newLoginLockouts(5, 15*time.Minute),
 		scheduler:      jobs.NewNoopReminderScheduler(logger),
-		push:           notifications.NewDevLoggerSender(logger),
+		push:           push,
 		storage:        filestore.NewLocalStore("data/uploads", "/uploads"),
 		metrics:        newMetrics(),
 		aiProviderName: strings.TrimSpace(cfg.AIProvider),
@@ -162,6 +172,10 @@ func (a *App) Routes() http.Handler {
 			r.Post("/reminders", a.handleCreateReminder)
 			r.Delete("/reminders/{reminderID}", a.handleDeleteReminder)
 			r.Get("/recommendations", a.handleRecommendations)
+			r.Post("/notifications/devices", a.handleRegisterPushDevice)
+			r.Delete("/notifications/devices/{deviceID}", a.handleDisablePushDevice)
+			r.Get("/notifications/preferences", a.handleGetNotificationPreferences)
+			r.Patch("/notifications/preferences", a.handleUpdateNotificationPreferences)
 			r.Group(func(r chi.Router) {
 				r.Use(a.aiLimit.middleware)
 				r.Post("/ai/meal-photo/analyze", a.handleAnalyzeMealPhoto)

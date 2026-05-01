@@ -48,6 +48,8 @@ class ApiEndpoints {
   static const favorites = '/favorites';
   static const reminders = '/reminders';
   static const recommendations = '/recommendations';
+  static const notificationDevices = '/notifications/devices';
+  static const notificationPreferences = '/notifications/preferences';
   static const aiMealPhotoAnalyze = '/ai/meal-photo/analyze';
   static const aiChat = '/ai/chat';
 
@@ -55,6 +57,7 @@ class ApiEndpoints {
   static String log(String id) => '/logs/$id';
   static String favorite(String id) => '/favorites/$id';
   static String reminder(String id) => '/reminders/$id';
+  static String notificationDevice(String id) => '/notifications/devices/$id';
   static String aiEstimate(String id) => '/ai/estimates/$id';
   static String acceptAiEstimate(String id) => '/ai/estimates/$id/accept';
 

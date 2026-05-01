@@ -118,6 +118,38 @@ void main() {
     expect(find.text('Welcome'), findsOneWidget);
   });
 
+  testWidgets('Login back button returns to welcome', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const storage = SecureTokenStorage();
+    final api = ApiClient(tokenStorage: storage);
+    await tester.pumpWidget(
+      NutrimateApp(
+        authProvider: _InitializedAuthProvider(api: api, storage: storage),
+        foodProvider: FoodProvider(api: api),
+        nutritionProvider: NutritionProvider(api: api),
+        reminderProvider: ReminderProvider(api: api),
+        notificationProvider: NotificationProvider(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(TextButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Get started'), findsOneWidget);
+  });
+
   testWidgets('Create account screen uses the brand logo asset', (
     WidgetTester tester,
   ) async {
