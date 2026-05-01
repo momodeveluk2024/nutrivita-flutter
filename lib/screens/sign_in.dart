@@ -53,7 +53,14 @@ class _SignInScreenState extends State<SignInScreen>
         email: _email.text.trim(),
         password: _password.text,
       );
-      if (mounted) context.go('/app');
+      if (mounted) {
+        final auth = context.read<AuthProvider>();
+        if (auth.needsEmailVerification) {
+          context.go('/verify-email');
+        } else {
+          context.go('/app');
+        }
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -61,7 +61,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         email: _email.text.trim(),
         password: _password.text,
       );
-      if (mounted) context.go('/app');
+      if (mounted) context.go('/verify-email');
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

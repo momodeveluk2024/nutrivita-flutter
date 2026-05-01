@@ -16,8 +16,13 @@ class AuthProvider extends ChangeNotifier {
 
   final ApiClient _api;
   final SecureTokenStorage _storage;
-  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // Web Client ID from Google Cloud Console
+    serverClientId:
+        '1005767331412-o3rgulp2rikba2n70psamln8j3etpb9i.apps.googleusercontent.com',
+  );
 
   AppUser? _user;
   bool _isLoading = false;
@@ -28,7 +33,21 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get initialized => _initialized;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated =>
+      _user != null || _firebaseAuth.currentUser != null;
+
+  /// Returns true if the current Firebase user signed up with email/password
+  /// and has not yet clicked the verification link in their inbox.
+  /// Google sign-in users are auto-verified, so this returns false for them.
+  bool get needsEmailVerification {
+    final fbUser = _firebaseAuth.currentUser;
+    if (fbUser == null) return false;
+    // Google sign-in users are always verified
+    for (final info in fbUser.providerData) {
+      if (info.providerId == 'google.com') return false;
+    }
+    return !fbUser.emailVerified;
+  }
 
   Future<void> initialize() async {
     // Wait for the first auth state event before returning,
@@ -66,6 +85,8 @@ class AuthProvider extends ChangeNotifier {
       );
       await cred.user?.updateDisplayName(displayName);
       await cred.user?.sendEmailVerification();
+      await cred.user?.reload();
+      await _firebaseAuth.currentUser?.getIdToken(true);
       await loadMe();
       _error = null;
     } catch (e) {
@@ -83,6 +104,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      await loadMe();
       _error = null;
     } catch (e) {
       _error = e.toString();
@@ -101,14 +123,17 @@ class AuthProvider extends ChangeNotifier {
         return; // User canceled sign-in
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
-      final firebase_auth.AuthCredential credential = firebase_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      final firebase_auth.AuthCredential credential =
+          firebase_auth.GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
 
       await _firebaseAuth.signInWithCredential(credential);
+      await loadMe();
       _error = null;
     } catch (e) {
       _error = e.toString();
@@ -150,7 +175,10 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      await _firebaseAuth.confirmPasswordReset(code: token, newPassword: newPassword);
+      await _firebaseAuth.confirmPasswordReset(
+        code: token,
+        newPassword: newPassword,
+      );
       _error = null;
     } catch (e) {
       _error = e.toString();

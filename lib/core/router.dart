@@ -34,16 +34,27 @@ String? redirectForAuthState({
   required bool initialized,
   required bool isAuthenticated,
   required bool needsOnboarding,
+  required bool needsEmailVerification,
 }) {
   if (!initialized) {
     return path == '/' ? null : '/';
   }
   if (!isAuthenticated &&
-      (path.startsWith('/app') || path == '/profile-setup')) {
+      (path.startsWith('/app') || path == '/profile-setup' || path == '/verify-email')) {
     return '/sign-in';
   }
   if (!isAuthenticated) {
     return null;
+  }
+  // Redirect unverified email/password users to verification screen
+  if (needsEmailVerification && path != '/verify-email') {
+    if (path.startsWith('/app') || _authPages.contains(path) || path == '/profile-setup') {
+      return '/verify-email';
+    }
+  }
+  // If on verify-email but already verified, proceed normally
+  if (!needsEmailVerification && path == '/verify-email') {
+    return needsOnboarding ? '/profile-setup' : '/app';
   }
   if (needsOnboarding && path != '/profile-setup') {
     if (path.startsWith('/app') || _authPages.contains(path)) {
@@ -70,6 +81,7 @@ GoRouter buildRouter(AuthProvider auth) {
         initialized: auth.initialized,
         isAuthenticated: auth.isAuthenticated,
         needsOnboarding: auth.user?.needsOnboarding ?? false,
+        needsEmailVerification: auth.needsEmailVerification,
       );
     },
     routes: [
