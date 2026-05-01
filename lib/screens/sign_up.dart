@@ -61,11 +61,20 @@ class _SignUpScreenState extends State<SignUpScreen>
         email: _email.text.trim(),
         password: _password.text,
       );
+      if (mounted) context.go('/app');
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Welcome. Let us tailor things to you.')),
-      );
-      context.go('/profile-setup');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    HapticFeedback.lightImpact();
+    try {
+      await context.read<AuthProvider>().signInWithGoogle();
+      if (mounted) context.go('/app');
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -277,18 +286,19 @@ class _SignUpScreenState extends State<SignUpScreen>
 
                                 // ── Social login ──
                                 Row(
-                                  children: const [
-                                    Expanded(
+                                  children: [
+                                    const Expanded(
                                       child: _SocialButton(
                                         provider: 'apple',
                                         label: 'Apple',
                                       ),
                                     ),
-                                    SizedBox(width: 12),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: _SocialButton(
                                         provider: 'google',
                                         label: 'Google',
+                                        onPressed: auth.isLoading ? null : _handleGoogleSignIn,
                                       ),
                                     ),
                                   ],
@@ -660,48 +670,47 @@ class _OrDivider extends StatelessWidget {
 }
 
 class _SocialButton extends StatelessWidget {
-  const _SocialButton({required this.provider, required this.label});
+  const _SocialButton({required this.provider, required this.label, this.onPressed});
   final String provider;
   final String label;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final c = NVColors.of(context);
     final isApple = provider == 'apple';
-    return Material(
-      color: c.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            border: Border.all(color: c.border),
+    final icon = isApple ? Icons.apple : Icons.g_mobiledata_rounded;
+    return SizedBox(
+      height: 54,
+      child: OutlinedButton(
+        onPressed: onPressed ?? () {},
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: c.border),
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isApple ? Icons.apple : Icons.g_mobiledata,
-                size: isApple ? 22 : 32,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: isApple ? 22 : 32,
+              color: c.text,
+            ),
+            if (isApple)
+              const SizedBox(width: 8)
+            else
+              const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
                 color: c.text,
               ),
-              if (isApple)
-                const SizedBox(width: 8)
-              else
-                const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: c.text,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

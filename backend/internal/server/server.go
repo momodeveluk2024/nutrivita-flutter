@@ -10,6 +10,10 @@ import (
 	"sync"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
+	firebaseauth "firebase.google.com/go/v4/auth"
+	"google.golang.org/api/option"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -42,16 +46,29 @@ type App struct {
 	ai             aipkg.Provider
 	aiProviderName string
 	now            func() time.Time
+	firebaseAuth   *firebaseauth.Client
 }
 
 func New(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	push := notifications.PushSender(notifications.NewDevLoggerSender(logger))
+	var fbAuth *firebaseauth.Client
 	if strings.TrimSpace(cfg.FirebaseCredentialsFile) != "" {
 		sender, err := notifications.NewFCMSender(context.Background(), cfg.FirebaseCredentialsFile)
 		if err != nil {
 			logger.Error("configure firebase cloud messaging", "error", err)
 		} else {
 			push = sender
+		}
+		
+		opt := option.WithCredentialsFile(cfg.FirebaseCredentialsFile)
+		fbApp, err := firebase.NewApp(context.Background(), nil, opt)
+		if err != nil {
+			logger.Error("configure firebase app", "error", err)
+		} else {
+			fbAuth, err = fbApp.Auth(context.Background())
+			if err != nil {
+				logger.Error("configure firebase auth", "error", err)
+			}
 		}
 	}
 
@@ -70,6 +87,7 @@ func New(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 		metrics:        newMetrics(),
 		aiProviderName: strings.TrimSpace(cfg.AIProvider),
 		now:            time.Now,
+		firebaseAuth:   fbAuth,
 	}
 	app.ai = buildAIProvider(cfg, logger)
 	return app
@@ -107,13 +125,6 @@ func (a *App) Routes() http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(a.authLimit.middleware)
-			r.Post("/auth/signup", a.handleSignup)
-			r.Post("/auth/login", a.handleLogin)
-			r.Post("/auth/refresh", a.handleRefresh)
-			r.Post("/auth/verify-email", a.handleVerifyEmail)
-			r.Post("/auth/forgot-password", a.handleForgotPassword)
-			r.Post("/auth/reset-password", a.handleResetPassword)
-			r.Post("/admin/auth/login", a.handleAdminLogin)
 		})
 		r.Get("/foods", a.handleListFoods)
 		r.Get("/foods/barcode/{barcode}", a.handleGetFoodByBarcode)
@@ -152,7 +163,6 @@ func (a *App) Routes() http.Handler {
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(a.requireAuth)
-			r.Post("/auth/logout", a.handleLogout)
 			r.Get("/me", a.handleMe)
 			r.Patch("/me/profile", a.handleUpdateProfile)
 			r.Post("/me/avatar", a.handleUpdateAvatar)
@@ -214,228 +224,7 @@ func buildAIProvider(cfg config.Config, logger *slog.Logger) aipkg.Provider {
 	}
 }
 
-type signupRequest struct {
-	Email       string `json:"email" validate:"required,email,max=320"`
-	Password    string `json:"password" validate:"required,min=8,max=128"`
-	DisplayName string `json:"display_name" validate:"required,min=1,max=120"`
-}
 
-type loginRequest struct {
-	Email    string `json:"email" validate:"required,email,max=320"`
-	Password string `json:"password" validate:"required,min=1,max=128"`
-}
-
-type refreshRequest struct {
-	Refresh string `json:"refresh" validate:"required"`
-}
-
-type verifyEmailRequest struct {
-	Token string `json:"token" validate:"required"`
-}
-
-type forgotPasswordRequest struct {
-	Email string `json:"email" validate:"required,email,max=320"`
-}
-
-type resetPasswordRequest struct {
-	Token       string `json:"token" validate:"required"`
-	NewPassword string `json:"new_password" validate:"required,min=8,max=128"`
-}
-
-type authResponse struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
-	User    db.Me  `json:"user"`
-}
-
-type refreshResponse struct {
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
-}
-
-func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
-	var request signupRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-
-	passwordHash, err := auth.HashPassword(request.Password)
-	if err != nil {
-		a.logger.Error("hash password", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create account")
-		return
-	}
-
-	userID, err := uuid.NewV7()
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create account")
-		return
-	}
-
-	user, _, err := a.store.CreateUserWithProfile(r.Context(), db.CreateUserParams{
-		ID:           userID,
-		Email:        strings.ToLower(strings.TrimSpace(request.Email)),
-		PasswordHash: passwordHash,
-		DisplayName:  strings.TrimSpace(request.DisplayName),
-	})
-	if err != nil {
-		if isUniqueViolation(err) {
-			httpx.WriteError(w, http.StatusConflict, "email already exists")
-			return
-		}
-		a.logger.Error("create user", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create account")
-		return
-	}
-
-	if token, tokenHash, err := auth.NewRefreshToken(); err == nil {
-		if err := a.store.CreateEmailVerification(r.Context(), user.ID, tokenHash, a.now().Add(24*time.Hour)); err == nil {
-			a.logger.Info("dev email verification token", "email", user.Email, "token", token)
-		}
-	}
-
-	response, err := a.issueAuthResponse(r, user.ID, http.StatusCreated)
-	if err != nil {
-		a.logger.Error("issue tokens", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create session")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, response)
-}
-
-func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
-	var request loginRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-	email := strings.ToLower(strings.TrimSpace(request.Email))
-	if retryAt, locked := a.lockouts.isLocked(email, a.now()); locked {
-		httpx.WriteError(w, http.StatusTooManyRequests, "account temporarily locked until "+retryAt.Format(time.RFC3339))
-		return
-	}
-
-	user, err := a.store.GetUserByEmail(r.Context(), email)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			a.lockouts.recordFailure(email, a.now())
-			httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
-			return
-		}
-		a.logger.Error("load user", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not login")
-		return
-	}
-
-	ok, err := auth.VerifyPassword(request.Password, user.PasswordHash)
-	if err != nil || !ok {
-		a.lockouts.recordFailure(email, a.now())
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
-		return
-	}
-	a.lockouts.clear(email)
-
-	response, err := a.issueAuthResponse(r, user.ID, http.StatusOK)
-	if err != nil {
-		a.logger.Error("issue tokens", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create session")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, response)
-}
-
-func (a *App) handleRefresh(w http.ResponseWriter, r *http.Request) {
-	var request refreshRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-
-	session, err := a.store.GetActiveSessionByRefreshHash(r.Context(), auth.HashRefreshToken(request.Refresh))
-	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid refresh token")
-		return
-	}
-
-	refresh, refreshHash, err := auth.NewRefreshToken()
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "could not refresh session")
-		return
-	}
-
-	session, err = a.store.RotateSession(r.Context(), session.ID, refreshHash, a.now().Add(a.cfg.RefreshTokenTTL))
-	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid refresh token")
-		return
-	}
-
-	access, err := a.tokenizer.IssueAccessToken(session.UserID, session.ID, a.now())
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "could not issue token")
-		return
-	}
-
-	httpx.WriteJSON(w, http.StatusOK, refreshResponse{Access: access, Refresh: refresh})
-}
-
-func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
-	var request verifyEmailRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-	if _, err := a.store.VerifyEmailToken(r.Context(), auth.HashRefreshToken(request.Token)); err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid verification token")
-		return
-	}
-	httpx.WriteNoContent(w)
-}
-
-func (a *App) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
-	var request forgotPasswordRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-	user, err := a.store.GetUserByEmail(r.Context(), strings.ToLower(strings.TrimSpace(request.Email)))
-	if err == nil {
-		if token, tokenHash, err := auth.NewRefreshToken(); err == nil {
-			if err := a.store.CreatePasswordReset(r.Context(), user.ID, tokenHash, a.now().Add(time.Hour)); err == nil {
-				a.logger.Info("dev password reset token", "email", user.Email, "token", token)
-			}
-		}
-	}
-	httpx.WriteNoContent(w)
-}
-
-func (a *App) handleResetPassword(w http.ResponseWriter, r *http.Request) {
-	var request resetPasswordRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
-	passwordHash, err := auth.HashPassword(request.NewPassword)
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "could not reset password")
-		return
-	}
-	if _, err := a.store.ResetPassword(r.Context(), auth.HashRefreshToken(request.Token), passwordHash); err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid reset token")
-		return
-	}
-	httpx.WriteNoContent(w)
-}
-
-func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
-	claims := authFromContext(r.Context())
-	if claims == nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	if err := a.store.RevokeSession(r.Context(), claims.SessionID); err != nil {
-		a.logger.Error("revoke session", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not logout")
-		return
-	}
-
-	httpx.WriteNoContent(w)
-}
 
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	claims := authFromContext(r.Context())
@@ -458,41 +247,7 @@ func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, me)
 }
 
-func (a *App) issueAuthResponse(r *http.Request, userID uuid.UUID, _ int) (authResponse, error) {
-	sessionID, err := uuid.NewV7()
-	if err != nil {
-		return authResponse{}, err
-	}
-	refresh, refreshHash, err := auth.NewRefreshToken()
-	if err != nil {
-		return authResponse{}, err
-	}
 
-	session, err := a.store.CreateSession(
-		r.Context(),
-		sessionID,
-		userID,
-		refreshHash,
-		r.UserAgent(),
-		clientIP(r),
-		a.now().Add(a.cfg.RefreshTokenTTL),
-	)
-	if err != nil {
-		return authResponse{}, err
-	}
-
-	access, err := a.tokenizer.IssueAccessToken(userID, session.ID, a.now())
-	if err != nil {
-		return authResponse{}, err
-	}
-
-	me, err := a.store.GetMe(r.Context(), userID)
-	if err != nil {
-		return authResponse{}, err
-	}
-
-	return authResponse{Access: access, Refresh: refresh, User: me}, nil
-}
 
 func (a *App) readAndValidate(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := httpx.ReadJSON(r, target); err != nil {
@@ -515,30 +270,101 @@ type authContext struct {
 
 func (a *App) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.firebaseAuth == nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "firebase auth not configured")
+			return
+		}
+
 		header := r.Header.Get("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
 			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
-		userID, sessionID, err := a.tokenizer.ParseAccessToken(strings.TrimPrefix(header, "Bearer "))
+		idToken := strings.TrimPrefix(header, "Bearer ")
+		token, err := a.firebaseAuth.VerifyIDToken(r.Context(), idToken)
 		if err != nil {
 			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 
-		session, err := a.store.GetActiveSessionByID(r.Context(), sessionID)
-		if err != nil || session.UserID != userID {
-			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized")
+		user, err := a.ensureUserFromFirebase(r.Context(), token)
+		if err != nil {
+			a.logger.Error("ensure firebase user", "error", err)
+			httpx.WriteError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), authContextKey{}, &authContext{
-			UserID:    userID,
-			SessionID: sessionID,
+			UserID:    user.ID,
+			SessionID: uuid.Nil,
 		})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (a *App) ensureUserFromFirebase(ctx context.Context, token *firebaseauth.Token) (db.User, error) {
+	// Try to find user by firebase UID
+	user, err := a.store.GetUserByFirebaseUID(ctx, token.UID)
+	if err == nil {
+		return user, nil
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return db.User{}, err
+	}
+
+	email := ""
+	if emailClaim, ok := token.Claims["email"].(string); ok {
+		email = strings.ToLower(strings.TrimSpace(emailClaim))
+	}
+	emailVerified := false
+	if ev, ok := token.Claims["email_verified"].(bool); ok {
+		emailVerified = ev
+	}
+	
+	var emailVerifiedAt *time.Time
+	if emailVerified {
+		now := a.now()
+		emailVerifiedAt = &now
+	}
+
+	if email != "" {
+		existing, err := a.store.GetUserByEmail(ctx, email)
+		if err == nil {
+			return a.store.LinkFirebaseUser(ctx, db.LinkFirebaseUserParams{
+				ID:              existing.ID,
+				FirebaseUID:     token.UID,
+				EmailVerifiedAt: emailVerifiedAt,
+			})
+		}
+	}
+
+	userID, err := uuid.NewV7()
+	if err != nil {
+		return db.User{}, err
+	}
+	
+	user, err = a.store.CreateFirebaseUser(ctx, db.CreateFirebaseUserParams{
+		ID:              userID,
+		Email:           email,
+		FirebaseUID:     token.UID,
+		EmailVerifiedAt: emailVerifiedAt,
+	})
+	if err != nil {
+		return db.User{}, err
+	}
+
+	name := email
+	if nameClaim, ok := token.Claims["name"].(string); ok && nameClaim != "" {
+		name = nameClaim
+	}
+	_, err = a.store.CreateUserProfile(ctx, db.CreateUserProfileParams{
+		UserID:      userID,
+		DisplayName: name,
+	})
+	
+	return user, err
 }
 
 func authFromContext(ctx context.Context) *authContext {

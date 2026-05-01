@@ -8,16 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/auth"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/db"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/filestore"
 	"github.com/momodeveluk2024/nutrivita-flutter/backend/internal/httpx"
 )
 
-type adminLoginRequest struct {
-	Email    string `json:"email" validate:"required,email,max=320"`
-	Password string `json:"password" validate:"required,min=1,max=128"`
-}
+
 
 type updateAdminNutrientDRIRequest struct {
 	Amount float64 `json:"amount" validate:"required,gt=0,lte=100000"`
@@ -71,50 +67,7 @@ type upsertAdminReminderTemplateRequest struct {
 	Active   bool   `json:"active"`
 }
 
-func (a *App) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
-	var request adminLoginRequest
-	if !a.readAndValidate(w, r, &request) {
-		return
-	}
 
-	email := strings.ToLower(strings.TrimSpace(request.Email))
-	if retryAt, locked := a.lockouts.isLocked(email, a.now()); locked {
-		httpx.WriteError(w, http.StatusTooManyRequests, "account temporarily locked until "+retryAt.Format(http.TimeFormat))
-		return
-	}
-
-	user, err := a.store.GetUserByEmail(r.Context(), email)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			a.lockouts.recordFailure(email, a.now())
-			httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
-			return
-		}
-		a.logger.Error("load admin user", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not login")
-		return
-	}
-	if user.Role != "admin" {
-		httpx.WriteError(w, http.StatusForbidden, "admin access required")
-		return
-	}
-
-	ok, err := auth.VerifyPassword(request.Password, user.PasswordHash)
-	if err != nil || !ok {
-		a.lockouts.recordFailure(email, a.now())
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid email or password")
-		return
-	}
-	a.lockouts.clear(email)
-
-	response, err := a.issueAuthResponse(r, user.ID, http.StatusOK)
-	if err != nil {
-		a.logger.Error("issue admin tokens", "error", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "could not create session")
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, response)
-}
 
 func (a *App) requireAdmin(next http.Handler) http.Handler {
 	return a.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

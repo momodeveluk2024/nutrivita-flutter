@@ -199,6 +199,102 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return user, err
 }
 
+func (s *Store) GetUserByFirebaseUID(ctx context.Context, firebaseUID string) (User, error) {
+	var user User
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, email, role, password_hash, email_verified_at, created_at, updated_at, suspended_at, deleted_at
+		FROM users
+		WHERE firebase_uid = $1 AND deleted_at IS NULL AND suspended_at IS NULL
+	`, firebaseUID).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Role,
+		&user.PasswordHash,
+		&user.EmailVerifiedAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.SuspendedAt,
+		&user.DeletedAt,
+	)
+	return user, err
+}
+
+type CreateFirebaseUserParams struct {
+	ID              uuid.UUID
+	Email           string
+	FirebaseUID     string
+	EmailVerifiedAt *time.Time
+}
+
+func (s *Store) CreateFirebaseUser(ctx context.Context, params CreateFirebaseUserParams) (User, error) {
+	var user User
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO users (id, email, firebase_uid, email_verified_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, email, role, password_hash, email_verified_at, created_at, updated_at
+	`, params.ID, params.Email, params.FirebaseUID, params.EmailVerifiedAt).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Role,
+		&user.PasswordHash,
+		&user.EmailVerifiedAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	return user, err
+}
+
+type LinkFirebaseUserParams struct {
+	ID              uuid.UUID
+	FirebaseUID     string
+	EmailVerifiedAt *time.Time
+}
+
+func (s *Store) LinkFirebaseUser(ctx context.Context, params LinkFirebaseUserParams) (User, error) {
+	var user User
+	err := s.pool.QueryRow(ctx, `
+		UPDATE users
+		SET firebase_uid = $2,
+		    email_verified_at = COALESCE(users.email_verified_at, $3),
+		    updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL
+		RETURNING id, email, role, password_hash, email_verified_at, created_at, updated_at
+	`, params.ID, params.FirebaseUID, params.EmailVerifiedAt).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Role,
+		&user.PasswordHash,
+		&user.EmailVerifiedAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	return user, err
+}
+
+type CreateUserProfileParams struct {
+	UserID      uuid.UUID
+	DisplayName string
+}
+
+func (s *Store) CreateUserProfile(ctx context.Context, params CreateUserProfileParams) (Profile, error) {
+	var profile Profile
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO user_profiles (user_id, display_name)
+		VALUES ($1, $2)
+		RETURNING user_id, display_name, units, locale, timezone, preferences, created_at, updated_at
+	`, params.UserID, params.DisplayName).Scan(
+		&profile.UserID,
+		&profile.DisplayName,
+		&profile.Units,
+		&profile.Locale,
+		&profile.Timezone,
+		&profile.Preferences,
+		&profile.CreatedAt,
+		&profile.UpdatedAt,
+	)
+	return profile, err
+}
+
 func (s *Store) CreateSession(ctx context.Context, sessionID, userID uuid.UUID, refreshHash []byte, userAgent, ip string, expiresAt time.Time) (Session, error) {
 	var session Session
 	err := s.pool.QueryRow(ctx, `

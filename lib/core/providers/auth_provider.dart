@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
-import '../models/auth.dart';
 import '../models/user.dart';
 import '../storage/secure_storage.dart';
 
@@ -14,6 +15,8 @@ class AuthProvider extends ChangeNotifier {
 
   final ApiClient _api;
   final SecureTokenStorage _storage;
+  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   AppUser? _user;
   bool _isLoading = false;
@@ -27,20 +30,22 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   Future<void> initialize() async {
-    final token = await _storage.getAccessToken();
-    if (token == null || token.isEmpty) {
-      _initialized = true;
-      notifyListeners();
-      return;
-    }
-    try {
-      await loadMe();
-    } catch (_) {
-      await _storage.clear();
-    } finally {
-      _initialized = true;
-      notifyListeners();
-    }
+    _firebaseAuth.authStateChanges().listen((firebaseUser) async {
+      if (firebaseUser == null) {
+        _user = null;
+        _initialized = true;
+        notifyListeners();
+      } else {
+        try {
+          await loadMe();
+        } catch (_) {
+          _user = null;
+        } finally {
+          _initialized = true;
+          notifyListeners();
+        }
+      }
+    });
   }
 
   Future<void> signup({
@@ -48,58 +53,120 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    await _authenticate(ApiEndpoints.signup, {
-      'display_name': displayName,
-      'email': email,
-      'password': password,
-    });
+    _setLoading(true);
+    try {
+      final cred = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      await cred.user?.updateDisplayName(displayName);
+      await cred.user?.sendEmailVerification();
+      await loadMe();
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> login({required String email, required String password}) async {
-    await _authenticate(ApiEndpoints.login, {
-      'email': email,
-      'password': password,
-    });
+    _setLoading(true);
+    try {
+      await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    _setLoading(true);
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        _setLoading(false);
+        return; // User canceled sign-in
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final firebase_auth.AuthCredential credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _firebaseAuth.signInWithCredential(credential);
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> logout() async {
     _setLoading(true);
     try {
-      await _api.post(ApiEndpoints.logout);
-    } catch (_) {
-      // The local logout should still complete even if the token is stale.
-    }
-    await _storage.clear();
+      await Future.wait([
+        _googleSignIn.signOut(),
+        _firebaseAuth.signOut(),
+        _storage.clear(),
+      ]);
+    } catch (_) {}
     _user = null;
     _setLoading(false);
   }
 
   Future<void> forgotPassword(String email) async {
-    await _runAuthAction(() async {
-      await _api.post(ApiEndpoints.forgotPassword, data: {'email': email});
-    });
+    _setLoading(true);
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> resetPassword({
     required String token,
     required String newPassword,
   }) async {
-    await _runAuthAction(() async {
-      await _api.post(
-        ApiEndpoints.resetPassword,
-        data: {'token': token, 'new_password': newPassword},
-      );
-    });
+    _setLoading(true);
+    try {
+      await _firebaseAuth.confirmPasswordReset(code: token, newPassword: newPassword);
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> verifyEmail(String token) async {
-    await _runAuthAction(() async {
-      await _api.post(ApiEndpoints.verifyEmail, data: {'token': token});
-      final accessToken = await _storage.getAccessToken();
-      if (accessToken != null && accessToken.isNotEmpty) {
-        await loadMe();
-      }
-    });
+    _setLoading(true);
+    try {
+      await _firebaseAuth.applyActionCode(token);
+      await loadMe();
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> updateProfile({
@@ -186,28 +253,16 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> loadMe() async {
-    final response = await _api.get(ApiEndpoints.me);
-    _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
-    _error = null;
-    notifyListeners();
-  }
-
-  Future<void> _authenticate(String path, Map<String, dynamic> body) async {
-    _setLoading(true);
+    if (_firebaseAuth.currentUser == null) return;
     try {
-      final response = await _api.post(path, data: body);
-      final auth = AuthResponse.fromJson(
-        Map<String, dynamic>.from(response.data as Map),
-      );
-      await _storage.saveTokens(access: auth.access, refresh: auth.refresh);
-      _user = auth.user;
+      final response = await _api.get(ApiEndpoints.me);
+      _user = AppUser.fromJson(Map<String, dynamic>.from(response.data as Map));
       _error = null;
-    } catch (error) {
-      _error = error.toString();
+    } catch (e) {
+      _error = e.toString();
       rethrow;
-    } finally {
-      _setLoading(false);
     }
+    notifyListeners();
   }
 
   Future<void> _runAuthAction(Future<void> Function() action) async {

@@ -62,6 +62,19 @@ class _SignInScreenState extends State<SignInScreen>
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    HapticFeedback.lightImpact();
+    try {
+      await context.read<AuthProvider>().signInWithGoogle();
+      if (mounted) context.go('/app');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = NVColors.of(context);
@@ -247,18 +260,19 @@ class _SignInScreenState extends State<SignInScreen>
 
                             // ── Social login ──
                             Row(
-                              children: const [
-                                Expanded(
+                              children: [
+                                const Expanded(
                                   child: _SocialButton(
                                     provider: 'apple',
                                     label: 'Apple',
                                   ),
                                 ),
-                                SizedBox(width: 12),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: _SocialButton(
                                     provider: 'google',
                                     label: 'Google',
+                                    onPressed: auth.isLoading ? null : _handleGoogleSignIn,
                                   ),
                                 ),
                               ],
@@ -608,9 +622,10 @@ class _OrDivider extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 
 class _SocialButton extends StatelessWidget {
-  const _SocialButton({required this.provider, required this.label});
+  const _SocialButton({required this.provider, required this.label, this.onPressed});
   final String provider;
   final String label;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -619,7 +634,7 @@ class _SocialButton extends StatelessWidget {
     return SizedBox(
       height: 54,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onPressed ?? () {},
         style: OutlinedButton.styleFrom(
           backgroundColor: c.surface,
           side: BorderSide(color: c.border),
