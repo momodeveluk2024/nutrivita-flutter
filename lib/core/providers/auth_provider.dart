@@ -84,10 +84,28 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       await cred.user?.updateDisplayName(displayName);
-      await cred.user?.sendEmailVerification();
+
+      // Set language code before sending verification to avoid
+      // "Ignoring header X-Firebase-Locale" warning
+      _firebaseAuth.setLanguageCode('en');
+
+      // Send verification email — wrapped in try-catch so a transient
+      // failure doesn't block the entire signup flow
+      try {
+        await cred.user?.sendEmailVerification();
+      } catch (e) {
+        debugPrint('sendEmailVerification failed: $e');
+      }
+
       await cred.user?.reload();
       await _firebaseAuth.currentUser?.getIdToken(true);
-      await loadMe();
+
+      // loadMe may fail for new users if backend sync is slow — that's OK,
+      // the user will land on verify-email and we'll retry later
+      try {
+        await loadMe();
+      } catch (_) {}
+
       _error = null;
     } catch (e) {
       _error = e.toString();

@@ -118,8 +118,7 @@ GoRouter buildRouter(AuthProvider auth) {
       ),
       GoRoute(
         path: '/verify-email',
-        builder: (context, state) =>
-            VerifyEmailScreen(initialToken: state.uri.queryParameters['token']),
+        builder: (context, state) => const VerifyEmailScreen(),
       ),
       GoRoute(
         path: '/app',
